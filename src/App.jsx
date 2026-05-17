@@ -31,6 +31,7 @@ function App() {
   const [cameras, setCameras] = useState([]);
   const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
   const [zoom, setZoom] = useState(1);
+  const [exposure, setExposure] = useState(0);
   const [capabilities, setCapabilities] = useState({});
   
   // Smart Resolution States
@@ -71,7 +72,7 @@ function App() {
         frameRate: { ideal: 30 }
       };
 
-      if (mode && mode.length > 20) {
+      if (mode !== 'user' && mode !== 'environment') {
         videoConstraints.deviceId = { exact: mode };
       } else {
         videoConstraints.facingMode = mode;
@@ -120,6 +121,9 @@ function App() {
         if (caps.zoom && !zoom) {
            setZoom(caps.zoom.min || 1);
         }
+        if (caps.exposureCompensation && exposure === 0) {
+           setExposure(0);
+        }
       }
       
       return stream;
@@ -151,6 +155,18 @@ function App() {
     if (capabilities.zoom) {
       try {
         await track.applyConstraints({ advanced: [{ zoom: newZoom }] });
+      } catch (err) {}
+    }
+  };
+
+  const handleExposureChange = async (e) => {
+    const newExp = parseFloat(e.target.value);
+    setExposure(newExp);
+    if (!localStreamRef.current) return;
+    const track = localStreamRef.current.getVideoTracks()[0];
+    if (capabilities.exposureCompensation) {
+      try {
+        await track.applyConstraints({ advanced: [{ exposureCompensation: newExp }] });
       } catch (err) {}
     }
   };
@@ -401,7 +417,7 @@ function App() {
         </div>
 
         {/* Zoom Slider */}
-        <div className="native-slider-container">
+        <div className="native-slider-container zoom-slider">
           <div style={{ color: '#fff', fontSize: '0.8rem', marginBottom: '0.5rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Zoom</div>
           <div className="slider-wrapper">
             <span style={{ color: '#fff', fontSize: '0.8rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>1x</span>
@@ -420,6 +436,29 @@ function App() {
             {zoom.toFixed(1)}x
           </div>
         </div>
+
+        {/* Exposure/Brightness Slider */}
+        {capabilities.exposureCompensation && (
+          <div className="native-slider-container exposure-slider">
+            <div style={{ color: '#fff', fontSize: '0.8rem', marginBottom: '0.5rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Bright</div>
+            <div className="slider-wrapper">
+              <span style={{ color: '#fff', fontSize: '0.8rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>-</span>
+              <input 
+                type="range" 
+                min={capabilities.exposureCompensation.min} 
+                max={capabilities.exposureCompensation.max} 
+                step={capabilities.exposureCompensation.step} 
+                value={exposure} 
+                onChange={handleExposureChange}
+                className="native-slider"
+              />
+              <span style={{ color: '#fff', fontSize: '0.8rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>+</span>
+            </div>
+            <div style={{ color: '#facc15', fontSize: '1.2rem', marginTop: '0.5rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+              {exposure > 0 ? '+' : ''}{exposure.toFixed(1)}
+            </div>
+          </div>
+        )}
 
         {/* Bottom Native Bar */}
         <div className="native-bottom-bar">

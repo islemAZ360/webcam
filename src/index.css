@@ -298,13 +298,24 @@ video {
 
 .native-slider-container {
   position: absolute;
-  bottom: 6rem;
-  left: 0;
-  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   z-index: 60;
+}
+
+.zoom-slider {
+  bottom: 6rem;
+  left: 0;
+  width: 100%;
+}
+
+.exposure-slider {
+  bottom: auto;
+  top: 10rem;
+  left: auto;
+  right: 0;
+  width: auto;
 }
 
 .slider-wrapper {
@@ -432,10 +443,18 @@ video {
     background: linear-gradient(to left, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 100%);
   }
   .native-slider-container {
-    bottom: auto; right: auto; left: 5rem; top: 50%;
+    bottom: auto; top: 50%;
     transform: translateY(-50%);
     width: 4rem; height: auto;
     padding: 0;
+  }
+  .zoom-slider {
+    left: 5rem;
+    right: auto;
+  }
+  .exposure-slider {
+    right: 5rem;
+    left: auto;
   }
   .slider-wrapper {
     flex-direction: column;
