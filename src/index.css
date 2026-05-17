@@ -295,6 +295,16 @@ video {
   z-index: 60;
 }
 
+.slider-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 0 2rem;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
 .native-slider {
   -webkit-appearance: none;
   width: 100%;
@@ -392,7 +402,55 @@ video {
 }
 
 
-@media (orientation: landscape) { .native-bottom-bar { top: 0; right: 0; width: 6rem; height: 100%; flex-direction: column; padding: 1.5rem 0; background: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,0.9) 100%); bottom: auto; left: auto; } .native-top-bar { top: 0; left: 0; width: 6rem; height: 100%; flex-direction: column; padding: 1.5rem 0; background: linear-gradient(to left, rgba(0,0,0,0) 0%, rgba(0,0,0,0.9) 100%); } .native-slider-container { bottom: auto; right: 7rem; top: 50%; transform: translateY(-50%); width: auto; height: 200px; flex-direction: row; } .native-slider { transform: rotate(-90deg); width: 200px; transform-origin: center; margin-left: -80px; } }
+@media (orientation: landscape) {
+  .native-bottom-bar {
+    top: 0; right: 0; bottom: auto; left: auto;
+    width: 5rem; height: 100%;
+    flex-direction: column;
+    padding: 1rem 0;
+    justify-content: space-evenly;
+    background: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 100%);
+  }
+  .native-top-bar {
+    top: 0; left: 0; bottom: auto; right: auto;
+    width: 5rem; height: 100%;
+    flex-direction: column;
+    padding: 1rem 0;
+    justify-content: space-evenly;
+    background: linear-gradient(to left, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 100%);
+  }
+  .native-slider-container {
+    bottom: auto; right: auto; left: 5rem; top: 50%;
+    transform: translateY(-50%);
+    width: 4rem; height: auto;
+    padding: 0;
+  }
+  .slider-wrapper {
+    flex-direction: column;
+    padding: 0;
+    gap: 0;
+  }
+  .native-slider {
+    transform: rotate(-90deg);
+    width: 160px;
+    margin: 5rem 0;
+  }
+  .teleprompter-overlay {
+    top: 5%; height: 90%;
+    left: 15%; width: 70%;
+  }
+}
 
-.teleprompter-overlay { position: absolute; top: 15%; left: 5%; width: 90%; height: 60%; background: rgba(0,0,0,0.65); backdrop-filter: blur(5px); border-radius: 1.5rem; z-index: 80; border: 2px solid rgba(59, 130, 246, 0.5); display: flex; flex-direction: column; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
-@media (orientation: landscape) { .teleprompter-overlay { top: 5%; height: 90%; left: 15%; width: 70%; } }
+.teleprompter-overlay {
+  position: absolute;
+  top: 15%; left: 5%;
+  width: 90%; height: 60%;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(5px);
+  border-radius: 1.5rem;
+  z-index: 80;
+  border: 2px solid rgba(59, 130, 246, 0.5);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+}

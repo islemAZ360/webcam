@@ -370,7 +370,7 @@ function App() {
         {/* Zoom Slider */}
         <div className="native-slider-container">
           <div style={{ color: '#fff', fontSize: '0.8rem', marginBottom: '0.5rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Zoom</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', width: '100%', padding: '0 2rem' }}>
+          <div className="slider-wrapper">
             <span style={{ color: '#fff', fontSize: '0.8rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>1x</span>
             <input 
               type="range" 
