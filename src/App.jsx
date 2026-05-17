@@ -19,11 +19,18 @@ function App() {
   const [errorMsg, setErrorMsg] = useState('');
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [facingMode, setFacingMode] = useState('user'); // user or environment
+  const [localStream, setLocalStream] = useState(null);
   const localVideoRef = useRef(null);
   
   const pcRef = useRef(null);
   const localStreamRef = useRef(null);
   const roomRef = useRef(null);
+
+  useEffect(() => {
+    if (localVideoRef.current && localStream && isCameraActive) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream, isCameraActive]);
 
   // Initialize camera
   const startCamera = async (mode = facingMode) => {
@@ -36,9 +43,7 @@ function App() {
         audio: true
       });
       localStreamRef.current = stream;
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
+      setLocalStream(stream);
       setIsCameraActive(true);
       return stream;
     } catch (err) {
@@ -186,58 +191,56 @@ function App() {
          status === 'connected' ? 'Connected' : 'Error'}
       </div>
 
-      {!isCameraActive ? (
-        <div className="glass-card">
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-            <div style={{ background: 'rgba(99, 102, 241, 0.2)', padding: '1rem', borderRadius: '50%' }}>
-              <Camera size={40} color="var(--primary)" />
-            </div>
+      <div className="glass-card" style={{ display: !isCameraActive ? 'flex' : 'none' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+          <div style={{ background: 'rgba(99, 102, 241, 0.2)', padding: '1rem', borderRadius: '50%' }}>
+            <Camera size={40} color="var(--primary)" />
           </div>
-          <h1>Connect to PC</h1>
-          <p>Enter the 6-digit code shown on your computer screen to start streaming.</p>
-          
-          {errorMsg && (
-            <div style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '0.75rem', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
-              {errorMsg}
-            </div>
-          )}
+        </div>
+        <h1>Connect to PC</h1>
+        <p>Enter the 6-digit code shown on your computer screen to start streaming.</p>
+        
+        {errorMsg && (
+          <div style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '0.75rem', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
+            {errorMsg}
+          </div>
+        )}
 
-          <form onSubmit={connectToPC} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <input 
-              type="text" 
-              maxLength="6"
-              placeholder="000000"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-            />
-            <button type="submit" disabled={status === 'connecting' || code.length < 6}>
-              {status === 'connecting' ? (
-                <><div className="loader"></div> Connecting...</>
-              ) : (
-                <><Video size={20} /> Start Streaming</>
-              )}
-            </button>
-          </form>
-        </div>
-      ) : (
-        <div className="video-container">
-          <video 
-            ref={localVideoRef} 
-            autoPlay 
-            playsInline 
-            muted 
-            style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)' }}
+        <form onSubmit={connectToPC} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <input 
+            type="text" 
+            maxLength="6"
+            placeholder="000000"
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
           />
-          <div className="controls">
-            <button className="icon-btn" onClick={toggleCamera} title="Switch Camera">
-              <SwitchCamera size={24} color="white" />
-            </button>
-            <button className="icon-btn danger" onClick={stopConnection} title="Stop Stream">
-              <VideoOff size={24} color="white" />
-            </button>
-          </div>
+          <button type="submit" disabled={status === 'connecting' || code.length < 6}>
+            {status === 'connecting' ? (
+              <><div className="loader"></div> Connecting...</>
+            ) : (
+              <><Video size={20} /> Start Streaming</>
+            )}
+          </button>
+        </form>
+      </div>
+
+      <div className="video-container" style={{ display: isCameraActive ? 'block' : 'none' }}>
+        <video 
+          ref={localVideoRef} 
+          autoPlay 
+          playsInline 
+          muted 
+          style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)' }}
+        />
+        <div className="controls">
+          <button className="icon-btn" onClick={toggleCamera} title="Switch Camera">
+            <SwitchCamera size={24} color="white" />
+          </button>
+          <button className="icon-btn danger" onClick={stopConnection} title="Stop Stream">
+            <VideoOff size={24} color="white" />
+          </button>
         </div>
-      )}
+      </div>
     </>
   );
 }
