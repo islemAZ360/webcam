@@ -9,6 +9,9 @@
   font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
+  color-scheme: dark;
+}
+
 html, body {
   margin: 0;
   padding: 0;
@@ -470,6 +473,8 @@ video {
   padding: 1.5rem;
   overflow-y: auto;
   display: block;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .teleprompter-text {
@@ -477,16 +482,16 @@ video {
   font-size: 2rem;
   font-weight: bold;
   text-align: center;
-  line-height: 1.4;
+  line-height: 1.5;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
   margin: 0;
-  padding: 1rem 0;
+  padding: 0 0 2rem 0;
   word-break: break-word;
   white-space: pre-wrap;
 }
 
 @media (orientation: landscape) {
   .teleprompter-text {
-    font-size: 1.5rem;
+    font-size: clamp(1rem, 6vh, 1.5rem);
   }
 }
