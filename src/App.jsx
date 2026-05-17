@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Camera, Video, VideoOff, SwitchCamera } from 'lucide-react';
+import { Camera, Video, VideoOff, SwitchCamera, Zap, ZapOff, Settings, Activity, Monitor } from 'lucide-react';
 import { db } from './firebase';
 import { collection, doc, getDoc, setDoc, updateDoc, onSnapshot, addDoc } from 'firebase/firestore';
 import './index.css';
@@ -20,6 +20,13 @@ function App() {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [facingMode, setFacingMode] = useState('user'); // user or environment
   const [localStream, setLocalStream] = useState(null);
+  
+  // Native Camera States
+  const [torchOn, setTorchOn] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [capabilities, setCapabilities] = useState({});
+  const [resolution, setResolution] = useState('1080P');
+  
   const localVideoRef = useRef(null);
   
   const pcRef = useRef(null);
@@ -33,24 +40,74 @@ function App() {
   }, [localStream, isCameraActive]);
 
   // Initialize camera
-  const startCamera = async (mode = facingMode) => {
+  const startCamera = async (mode = facingMode, res = resolution) => {
     try {
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
+      
+      const width = res === '4K' ? 3840 : res === '1080P' ? 1920 : 1280;
+      const height = res === '4K' ? 2160 : res === '1080P' ? 1080 : 720;
+      
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: mode },
+        video: { 
+          facingMode: mode,
+          width: { ideal: width },
+          height: { ideal: height }
+        },
         audio: true
       });
+      
       localStreamRef.current = stream;
       setLocalStream(stream);
       setIsCameraActive(true);
+      
+      const track = stream.getVideoTracks()[0];
+      if (track.getCapabilities) {
+        const caps = track.getCapabilities();
+        setCapabilities(caps);
+        if (caps.zoom && !zoom) {
+           setZoom(caps.zoom.min || 1);
+        }
+      }
+      
       return stream;
     } catch (err) {
       console.error('Error accessing camera:', err);
       setErrorMsg('Cannot access camera. Please allow permissions.');
       return null;
     }
+  };
+
+  const toggleTorch = async () => {
+    if (!localStreamRef.current) return;
+    const track = localStreamRef.current.getVideoTracks()[0];
+    if (capabilities.torch) {
+      try {
+        await track.applyConstraints({ advanced: [{ torch: !torchOn }] });
+        setTorchOn(!torchOn);
+      } catch (err) {
+        console.error("Torch error", err);
+      }
+    }
+  };
+
+  const handleZoomChange = async (e) => {
+    const newZoom = parseFloat(e.target.value);
+    setZoom(newZoom);
+    if (!localStreamRef.current) return;
+    const track = localStreamRef.current.getVideoTracks()[0];
+    if (capabilities.zoom) {
+      try {
+        await track.applyConstraints({ advanced: [{ zoom: newZoom }] });
+      } catch (err) {}
+    }
+  };
+
+  const toggleResolution = () => {
+    const nextRes = resolution === '720P' ? '1080P' : resolution === '1080P' ? '4K' : '720P';
+    setResolution(nextRes);
+    startCamera(facingMode, nextRes);
   };
 
   const toggleCamera = () => {
@@ -232,12 +289,59 @@ function App() {
           muted 
           style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)' }}
         />
-        <div className="controls">
-          <button className="icon-btn" onClick={toggleCamera} title="Switch Camera">
-            <SwitchCamera size={24} color="white" />
+        
+        {/* Top Native Bar */}
+        <div className="native-top-bar">
+          <button className="icon-btn-transparent" onClick={toggleTorch} style={{ opacity: capabilities.torch ? 1 : 0.3 }} disabled={!capabilities.torch}>
+            {torchOn ? <Zap size={24} color="#fff" fill="#fff" /> : <ZapOff size={24} color="#fff" />}
           </button>
-          <button className="icon-btn danger" onClick={stopConnection} title="Stop Stream">
-            <VideoOff size={24} color="white" />
+          <button className="icon-btn-transparent">
+            <Activity size={24} color="#fff" />
+          </button>
+          <button className="icon-btn-transparent" onClick={toggleResolution}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontWeight: 'bold', fontSize: '0.7rem', color: '#fff' }}>
+              <span>{resolution}</span>
+              <span style={{ background: '#fff', color: '#000', padding: '1px 4px', borderRadius: '4px', marginTop: '2px' }}>30</span>
+            </div>
+          </button>
+          <button className="icon-btn-transparent">
+            <Settings size={24} color="#fff" />
+          </button>
+        </div>
+
+        {/* Zoom Slider */}
+        <div className="native-slider-container">
+          <div style={{ color: '#fff', fontSize: '0.8rem', marginBottom: '0.5rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Zoom</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', width: '100%', padding: '0 2rem' }}>
+            <span style={{ color: '#fff', fontSize: '0.8rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>1x</span>
+            <input 
+              type="range" 
+              min={capabilities.zoom ? capabilities.zoom.min : 1} 
+              max={capabilities.zoom ? capabilities.zoom.max : 5} 
+              step={capabilities.zoom ? capabilities.zoom.step : 0.1} 
+              value={zoom} 
+              onChange={handleZoomChange}
+              className="native-slider"
+            />
+            <span style={{ color: '#fff', fontSize: '0.8rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Max</span>
+          </div>
+          <div style={{ color: '#facc15', fontSize: '1.2rem', marginTop: '0.5rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+            {zoom.toFixed(1)}x
+          </div>
+        </div>
+
+        {/* Bottom Native Bar */}
+        <div className="native-bottom-bar">
+          <div className="gallery-thumbnail" style={{ opacity: status === 'connected' ? 1 : 0.3 }} title={status}>
+             <Monitor size={20} color="#fff" />
+          </div>
+          
+          <button className="record-btn" onClick={stopConnection} title="Stop Camera">
+            <div className="record-btn-inner"></div>
+          </button>
+
+          <button className="flip-btn" onClick={toggleCamera}>
+            <SwitchCamera size={28} color="#fff" />
           </button>
         </div>
       </div>

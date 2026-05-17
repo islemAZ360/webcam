@@ -204,3 +204,148 @@ video {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* Native Camera UI Styles */
+
+.native-top-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+  z-index: 60;
+  box-sizing: border-box;
+}
+
+.icon-btn-transparent {
+  background: transparent;
+  border: none;
+  padding: 0.5rem;
+  color: white;
+  width: auto;
+  height: auto;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.icon-btn-transparent:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.icon-btn-transparent:disabled {
+  background: transparent;
+  cursor: not-allowed;
+}
+
+.native-slider-container {
+  position: absolute;
+  bottom: 8.5rem;
+  left: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 60;
+}
+
+.native-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  max-width: 300px;
+  background: transparent;
+  height: 40px;
+  position: relative;
+  outline: none;
+  margin: 0;
+  padding: 0;
+}
+
+.native-slider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 12px;
+  transform: translateY(-50%);
+  background-image: repeating-linear-gradient(to right, rgba(255,255,255,0.5) 0, rgba(255,255,255,0.5) 2px, transparent 2px, transparent 20px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.native-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 24px;
+  width: 4px;
+  border-radius: 2px;
+  background: #facc15;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.8);
+}
+
+.native-bottom-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 8rem;
+  background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0 2rem;
+  z-index: 60;
+  box-sizing: border-box;
+}
+
+.gallery-thumbnail {
+  width: 50px;
+  height: 50px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.record-btn {
+  width: 75px;
+  height: 75px;
+  border-radius: 50%;
+  border: 4px solid #fff;
+  background: transparent;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  transition: transform 0.2s;
+}
+
+.record-btn:active {
+  transform: scale(0.9);
+}
+
+.record-btn-inner {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #ef4444;
+}
+
+.flip-btn {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+}
