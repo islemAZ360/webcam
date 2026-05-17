@@ -7,7 +7,12 @@ import './index.css';
 const servers = {
   iceServers: [
     {
-      urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
+      urls: [
+        'stun:stun.l.google.com:19302',
+        'stun:stun1.l.google.com:19302',
+        'stun:stun2.l.google.com:19302',
+        'stun:stun3.l.google.com:19302'
+      ],
     },
   ],
   iceCandidatePoolSize: 10,
@@ -401,13 +406,7 @@ function App() {
       
       {/* Teleprompter Overlay */}
       {showTeleprompterOverlay && teleprompter && teleprompter.isActive && (
-        <div style={{
-          position: 'absolute', top: '15%', left: '5%', width: '90%', height: '60%',
-          background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(5px)',
-          borderRadius: '1.5rem', zIndex: 80, border: '2px solid rgba(59, 130, 246, 0.5)',
-          display: 'flex', flexDirection: 'column',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
-        }}>
+        <div className="teleprompter-overlay">
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
             <span style={{ color: '#3b82f6', fontWeight: 'bold' }}>{teleprompter.name}</span>
             <span style={{ color: '#94a3b8' }}>{teleprompter.currentIndex + 1} / {teleprompter.parts.length}</span>
