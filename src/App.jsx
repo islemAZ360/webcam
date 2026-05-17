@@ -28,6 +28,8 @@ function App() {
   
   // Native Camera States
   const [torchOn, setTorchOn] = useState(false);
+  const [cameras, setCameras] = useState([]);
+  const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [capabilities, setCapabilities] = useState({});
   
@@ -63,13 +65,20 @@ function App() {
       const width = res === '4K' ? 3840 : res === '1080P' ? 1920 : res === '720P' ? 1280 : 854;
       const height = res === '4K' ? 2160 : res === '1080P' ? 1080 : res === '720P' ? 720 : 480;
       
+      let videoConstraints = {
+        width: { ideal: width },
+        height: { ideal: height },
+        frameRate: { ideal: 30 }
+      };
+
+      if (mode && mode.length > 20) {
+        videoConstraints.deviceId = { exact: mode };
+      } else {
+        videoConstraints.facingMode = mode;
+      }
+      
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: mode,
-          width: { ideal: width },
-          height: { ideal: height },
-          frameRate: { ideal: 30 }
-        },
+        video: videoConstraints,
         audio: true
       });
       
@@ -79,6 +88,12 @@ function App() {
       
       const track = stream.getVideoTracks()[0];
       const settings = track.getSettings();
+      
+      if (cameras.length === 0) {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        setCameras(videoDevices);
+      }
       
       // Determine actual resolution applied by hardware
       const actualW = Math.max(settings.width || 0, settings.height || 0);
@@ -151,22 +166,40 @@ function App() {
   };
 
   const toggleCamera = () => {
-    const newMode = facingMode === 'user' ? 'environment' : 'user';
-    setFacingMode(newMode);
-    startCamera(newMode).then(stream => {
-      // If we are already connected, we need to replace the tracks
-      if (pcRef.current && stream) {
-        const videoTrack = stream.getVideoTracks()[0];
-        const audioTrack = stream.getAudioTracks()[0];
-        const senders = pcRef.current.getSenders();
-        
-        const videoSender = senders.find(s => s.track.kind === 'video');
-        if (videoSender) videoSender.replaceTrack(videoTrack);
-        
-        const audioSender = senders.find(s => s.track.kind === 'audio');
-        if (audioSender) audioSender.replaceTrack(audioTrack);
-      }
-    });
+    if (cameras.length > 1) {
+      const nextIndex = (currentCameraIndex + 1) % cameras.length;
+      setCurrentCameraIndex(nextIndex);
+      const nextDevice = cameras[nextIndex];
+      startCamera(nextDevice.deviceId).then(stream => {
+        if (pcRef.current && stream) {
+          const videoTrack = stream.getVideoTracks()[0];
+          const audioTrack = stream.getAudioTracks()[0];
+          const senders = pcRef.current.getSenders();
+          
+          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+          if (videoSender) videoSender.replaceTrack(videoTrack);
+          
+          const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+          if (audioSender) audioSender.replaceTrack(audioTrack);
+        }
+      });
+    } else {
+      const newMode = facingMode === 'user' ? 'environment' : 'user';
+      setFacingMode(newMode);
+      startCamera(newMode).then(stream => {
+        if (pcRef.current && stream) {
+          const videoTrack = stream.getVideoTracks()[0];
+          const audioTrack = stream.getAudioTracks()[0];
+          const senders = pcRef.current.getSenders();
+          
+          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+          if (videoSender) videoSender.replaceTrack(videoTrack);
+          
+          const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+          if (audioSender) audioSender.replaceTrack(audioTrack);
+        }
+      });
+    }
   };
 
   const connectToPC = async (e) => {
