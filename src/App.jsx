@@ -25,7 +25,12 @@ function App() {
   const [torchOn, setTorchOn] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [capabilities, setCapabilities] = useState({});
+  
+  // Smart Resolution States
+  const [supportedResolutions, setSupportedResolutions] = useState(['480P', '720P', '1080P', '4K']);
   const [resolution, setResolution] = useState('1080P');
+  const [actualResolution, setActualResolution] = useState('1080P');
+  const [actualFps, setActualFps] = useState(30);
   
   const localVideoRef = useRef(null);
   
@@ -46,14 +51,15 @@ function App() {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
       
-      const width = res === '4K' ? 3840 : res === '1080P' ? 1920 : 1280;
-      const height = res === '4K' ? 2160 : res === '1080P' ? 1080 : 720;
+      const width = res === '4K' ? 3840 : res === '1080P' ? 1920 : res === '720P' ? 1280 : 854;
+      const height = res === '4K' ? 2160 : res === '1080P' ? 1080 : res === '720P' ? 720 : 480;
       
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode: mode,
           width: { ideal: width },
-          height: { ideal: height }
+          height: { ideal: height },
+          frameRate: { ideal: 30 }
         },
         audio: true
       });
@@ -63,6 +69,27 @@ function App() {
       setIsCameraActive(true);
       
       const track = stream.getVideoTracks()[0];
+      const settings = track.getSettings();
+      
+      // Determine actual resolution applied by hardware
+      const actualW = Math.max(settings.width || 0, settings.height || 0);
+      let detectedLabel = '480P';
+      if (actualW >= 3840) detectedLabel = '4K';
+      else if (actualW >= 1920) detectedLabel = '1080P';
+      else if (actualW >= 1280) detectedLabel = '720P';
+      
+      setActualResolution(detectedLabel);
+      if (settings.frameRate) setActualFps(Math.round(settings.frameRate));
+      
+      // Smart detection: remove unsupported higher resolutions if fallback occurred
+      if (res === '4K' && detectedLabel !== '4K') {
+         setSupportedResolutions(prev => prev.filter(r => r !== '4K'));
+         setResolution(detectedLabel);
+      } else if (res === '1080P' && detectedLabel !== '1080P' && detectedLabel !== '4K') {
+         setSupportedResolutions(prev => prev.filter(r => r !== '1080P' && r !== '4K'));
+         setResolution(detectedLabel);
+      }
+      
       if (track.getCapabilities) {
         const caps = track.getCapabilities();
         setCapabilities(caps);
@@ -105,7 +132,11 @@ function App() {
   };
 
   const toggleResolution = () => {
-    const nextRes = resolution === '720P' ? '1080P' : resolution === '1080P' ? '4K' : '720P';
+    let currentIndex = supportedResolutions.indexOf(resolution);
+    if (currentIndex === -1) currentIndex = supportedResolutions.indexOf(actualResolution);
+    
+    const nextIndex = (currentIndex + 1) % supportedResolutions.length;
+    const nextRes = supportedResolutions[nextIndex];
     setResolution(nextRes);
     startCamera(facingMode, nextRes);
   };
@@ -300,8 +331,8 @@ function App() {
           </button>
           <button className="icon-btn-transparent" onClick={toggleResolution}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontWeight: 'bold', fontSize: '0.7rem', color: '#fff' }}>
-              <span>{resolution}</span>
-              <span style={{ background: '#fff', color: '#000', padding: '1px 4px', borderRadius: '4px', marginTop: '2px' }}>30</span>
+              <span>{actualResolution}</span>
+              <span style={{ background: '#fff', color: '#000', padding: '1px 4px', borderRadius: '4px', marginTop: '2px' }}>{actualFps}</span>
             </div>
           </button>
           <button className="icon-btn-transparent">
