@@ -12,12 +12,20 @@
   color-scheme: dark;
 }
 
-body {
+html, body {
   margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: fixed;
+  overscroll-behavior: none;
+}
+
+body {
   display: flex;
   place-items: center;
   min-width: 320px;
-  min-height: 100vh;
   background: linear-gradient(-45deg, #0f172a, #1e1b4b, #312e81, #0f172a);
   background-size: 400% 400%;
   animation: gradientBG 15s ease infinite;
@@ -49,16 +57,21 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-top: 1px solid rgba(255, 255, 255, 0.3);
   border-left: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 3rem 2.5rem;
-  border-radius: 2rem;
+  padding: 2rem 1.5rem;
+  border-radius: 1.5rem;
   box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.05);
   width: 100%;
-  max-width: 420px;
+  max-width: 400px;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
   transform: translateY(0);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.glass-card h1 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .glass-card:hover {
@@ -78,18 +91,19 @@ h1 {
 p {
   color: var(--text-muted);
   margin: 0;
+  font-size: 0.875rem;
 }
 
 input {
   width: 100%;
-  padding: 1.25rem;
+  padding: 0.85rem 1rem;
   border-radius: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(0, 0, 0, 0.3);
   color: white;
-  font-size: 1.75rem;
+  font-size: 1rem;
   text-align: center;
-  letter-spacing: 0.75rem;
+  letter-spacing: 0.25rem;
   font-weight: 600;
   outline: none;
   transition: all 0.3s ease;
@@ -107,11 +121,11 @@ input:focus {
 button {
   border-radius: 1rem;
   border: none;
-  padding: 1.25rem 2rem;
-  font-size: 1.1rem;
-  font-weight: 700;
+  padding: 0.85rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
   font-family: inherit;
-  background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
   color: white;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -119,10 +133,10 @@ button {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 0.75rem;
-  box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.5);
+  gap: 0.5rem;
+  box-shadow: 0 5px 15px -5px rgba(99, 102, 241, 0.4);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
 }
 
 button:hover:not(:disabled) {
