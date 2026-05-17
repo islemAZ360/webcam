@@ -491,12 +491,13 @@ video {
   flex: 1;
   padding: 1.5rem;
   overflow-y: auto;
-  display: block;
+  display: flex;
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
 }
 
 .teleprompter-text {
+  margin: auto;
   color: #fff;
   font-size: 2rem;
   font-weight: bold;
