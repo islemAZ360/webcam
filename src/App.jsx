@@ -82,13 +82,27 @@ function App() {
         videoConstraints.facingMode = mode;
       }
       
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: videoConstraints,
-        audio: true
-      });
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints,
+          audio: true
+        });
+      } catch (err) {
+        console.warn('Initial camera constraints failed, retrying with minimal...', err);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: videoConstraints.deviceId ? videoConstraints.deviceId : undefined },
+          audio: true
+        });
+      }
       
       localStreamRef.current = stream;
-      setLocalStream(stream);
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      } else {
+        // Fallback if ref is not ready, set directly using state later
+        setLocalStream(stream);
+      }
       setIsCameraActive(true);
       
       const track = stream.getVideoTracks()[0];
@@ -134,6 +148,7 @@ function App() {
       return stream;
     } catch (err) {
       console.error('Error accessing camera:', err);
+      alert('Camera error: ' + err.message + '\nTry refreshing or picking another lens.');
       setErrorMsg('Cannot access camera. Please allow permissions.');
       return null;
     }
