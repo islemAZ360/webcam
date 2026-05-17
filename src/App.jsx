@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Camera, Video, VideoOff, SwitchCamera, Zap, ZapOff, Settings, Activity, Monitor } from 'lucide-react';
+import { Camera, Video, VideoOff, SwitchCamera, Zap, ZapOff, Settings, Activity, Monitor, FileText } from 'lucide-react';
 import { db } from './firebase';
 import { collection, doc, getDoc, setDoc, updateDoc, onSnapshot, addDoc } from 'firebase/firestore';
 import './index.css';
@@ -31,6 +31,10 @@ function App() {
   const [resolution, setResolution] = useState('1080P');
   const [actualResolution, setActualResolution] = useState('1080P');
   const [actualFps, setActualFps] = useState(30);
+  
+  // Teleprompter States
+  const [teleprompter, setTeleprompter] = useState(null);
+  const [showTeleprompterOverlay, setShowTeleprompterOverlay] = useState(false);
   
   const localVideoRef = useRef(null);
   
@@ -211,13 +215,21 @@ function App() {
 
       await updateDoc(roomDocument, { offer });
 
-      // 5. Listen for remote answer
+      // 5. Listen for remote answer and teleprompter
       onSnapshot(roomDocument, (snapshot) => {
         const data = snapshot.data();
-        if (!pc.currentRemoteDescription && data?.answer) {
-          const answerDescription = new RTCSessionDescription(data.answer);
-          pc.setRemoteDescription(answerDescription);
-          setStatus('connected');
+        if (data) {
+          if (!pc.currentRemoteDescription && data.answer) {
+            const answerDescription = new RTCSessionDescription(data.answer);
+            pc.setRemoteDescription(answerDescription);
+            setStatus('connected');
+          }
+          if (data.teleprompter) {
+            setTeleprompter(data.teleprompter);
+            if (!data.teleprompter.isActive) {
+              setShowTeleprompterOverlay(false);
+            }
+          }
         }
       });
 
@@ -326,9 +338,19 @@ function App() {
           <button className="icon-btn-transparent" onClick={toggleTorch} style={{ opacity: capabilities.torch ? 1 : 0.3 }} disabled={!capabilities.torch}>
             {torchOn ? <Zap size={24} color="#fff" fill="#fff" /> : <ZapOff size={24} color="#fff" />}
           </button>
-          <button className="icon-btn-transparent">
-            <Activity size={24} color="#fff" />
-          </button>
+          {teleprompter && teleprompter.isActive ? (
+            <button 
+              className="icon-btn-transparent" 
+              onClick={() => setShowTeleprompterOverlay(!showTeleprompterOverlay)}
+              style={{ background: showTeleprompterOverlay ? 'rgba(59, 130, 246, 0.5)' : 'rgba(59, 130, 246, 0.2)' }}
+            >
+              <FileText size={24} color="#3b82f6" />
+            </button>
+          ) : (
+            <button className="icon-btn-transparent" style={{ opacity: 0.3 }} disabled>
+              <FileText size={24} color="#fff" />
+            </button>
+          )}
           <button className="icon-btn-transparent" onClick={toggleResolution}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontWeight: 'bold', fontSize: '0.7rem', color: '#fff' }}>
               <span>{actualResolution}</span>
@@ -376,6 +398,31 @@ function App() {
           </button>
         </div>
       </div>
+      
+      {/* Teleprompter Overlay */}
+      {showTeleprompterOverlay && teleprompter && teleprompter.isActive && (
+        <div style={{
+          position: 'absolute', top: '15%', left: '5%', width: '90%', height: '60%',
+          background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(5px)',
+          borderRadius: '1.5rem', zIndex: 80, border: '2px solid rgba(59, 130, 246, 0.5)',
+          display: 'flex', flexDirection: 'column',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+            <span style={{ color: '#3b82f6', fontWeight: 'bold' }}>{teleprompter.name}</span>
+            <span style={{ color: '#94a3b8' }}>{teleprompter.currentIndex + 1} / {teleprompter.parts.length}</span>
+          </div>
+          <div style={{ flex: 1, padding: '1.5rem', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <p style={{
+              color: '#fff', fontSize: '2rem', fontWeight: 'bold', textAlign: 'center',
+              lineHeight: '1.4', textShadow: '2px 2px 4px rgba(0,0,0,0.8)',
+              margin: 0
+            }}>
+              {teleprompter.parts[teleprompter.currentIndex]}
+            </p>
+          </div>
+        </div>
+      )}
     </>
   );
 }
