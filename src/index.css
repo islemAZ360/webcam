@@ -143,11 +143,12 @@ button:disabled {
 }
 
 .video-container {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
   background: #000;
   z-index: 50;
   overflow: hidden;
@@ -320,7 +321,7 @@ video {
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 5rem;
+  height: 4.5rem;
   background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%);
   display: flex;
   justify-content: space-around;
@@ -342,8 +343,8 @@ video {
 }
 
 .record-btn {
-  width: 60px;
-  height: 60px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   border: 3px solid #fff;
   background: transparent;
@@ -359,8 +360,8 @@ video {
 }
 
 .record-btn-inner {
-  width: 48px;
-  height: 48px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: #ef4444;
 }
