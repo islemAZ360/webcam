@@ -9,9 +9,6 @@
   font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color-scheme: dark;
-}
-
 html, body {
   margin: 0;
   padding: 0;
@@ -20,6 +17,18 @@ html, body {
   overflow: hidden;
   position: fixed;
   overscroll-behavior: none;
+}
+
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  html {
+    font-size: 12px;
+  }
 }
 
 body {
@@ -436,8 +445,9 @@ video {
     margin: 5rem 0;
   }
   .teleprompter-overlay {
-    top: 5%; height: 90%;
-    left: 15%; width: 70%;
+    top: 10%; height: 80%;
+    left: 50%; transform: translateX(-50%);
+    width: 60%;
   }
 }
 
@@ -453,4 +463,31 @@ video {
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+}
+
+.teleprompter-content {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.teleprompter-text {
+  color: #fff;
+  font-size: 2rem;
+  font-weight: bold;
+  text-align: center;
+  line-height: 1.4;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+  margin: 0;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+@media (orientation: landscape) {
+  .teleprompter-text {
+    font-size: 1.5rem;
+  }
 }

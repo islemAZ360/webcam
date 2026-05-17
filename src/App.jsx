@@ -411,12 +411,8 @@ function App() {
             <span style={{ color: '#3b82f6', fontWeight: 'bold' }}>{teleprompter.name}</span>
             <span style={{ color: '#94a3b8' }}>{teleprompter.currentIndex + 1} / {teleprompter.parts.length}</span>
           </div>
-          <div style={{ flex: 1, padding: '1.5rem', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <p style={{
-              color: '#fff', fontSize: '2rem', fontWeight: 'bold', textAlign: 'center',
-              lineHeight: '1.4', textShadow: '2px 2px 4px rgba(0,0,0,0.8)',
-              margin: 0
-            }}>
+          <div className="teleprompter-content">
+            <p className="teleprompter-text">
               {teleprompter.parts[teleprompter.currentIndex]}
             </p>
           </div>
