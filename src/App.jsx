@@ -23,7 +23,10 @@ function App() {
   const [status, setStatus] = useState('disconnected'); // disconnected, connecting, connected, error
   const [errorMsg, setErrorMsg] = useState('');
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const [facingMode, setFacingMode] = useState('user'); // user or environment
+  const [facingMode, setFacingMode] = useState('environment');
+  const [currentCameraId, setCurrentCameraId] = useState(null);
+  
+  // Native Camera States
   const [localStream, setLocalStream] = useState(null);
   
   // Native Camera States
@@ -89,7 +92,8 @@ function App() {
       
       const track = stream.getVideoTracks()[0];
       const settings = track.getSettings();
-      
+      setCurrentCameraId(settings.deviceId);
+
       if (cameras.length === 0) {
         const devices = await navigator.mediaDevices.enumerateDevices();
         const videoDevices = devices.filter(d => d.kind === 'videoinput');
@@ -178,7 +182,21 @@ function App() {
     const nextIndex = (currentIndex + 1) % supportedResolutions.length;
     const nextRes = supportedResolutions[nextIndex];
     setResolution(nextRes);
-    startCamera(facingMode, nextRes);
+    
+    const modeToUse = currentCameraId || facingMode;
+    startCamera(modeToUse, nextRes).then(stream => {
+      if (pcRef.current && stream) {
+        const videoTrack = stream.getVideoTracks()[0];
+        const audioTrack = stream.getAudioTracks()[0];
+        const senders = pcRef.current.getSenders();
+        
+        const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+        if (videoSender) videoSender.replaceTrack(videoTrack);
+        
+        const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+        if (audioSender) audioSender.replaceTrack(audioTrack);
+      }
+    });
   };
 
   const toggleCamera = () => {
@@ -230,7 +248,10 @@ function App() {
 
     try {
       // 1. Get Camera
-      const stream = await startCamera();
+      let stream = localStreamRef.current;
+      if (!stream) {
+        stream = await startCamera();
+      }
       if (!stream) {
         setStatus('error');
         return;
