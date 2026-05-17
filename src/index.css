@@ -489,15 +489,23 @@ video {
 
 .teleprompter-content {
   flex: 1;
-  padding: 1.5rem;
+  padding: 1rem;
   overflow-y: auto;
   display: flex;
+  flex-direction: column;
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
 }
 
-.teleprompter-text {
+/* Magic trick for safe vertical centering */
+.teleprompter-content::before,
+.teleprompter-content::after {
+  content: "";
   margin: auto;
+}
+
+.teleprompter-text {
+  flex: 0 0 auto;
   color: #fff;
   font-size: 2rem;
   font-weight: bold;
@@ -505,8 +513,11 @@ video {
   line-height: 1.5;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
   margin: 0;
-  padding: 0 0 2rem 0;
-  word-break: break-word;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
   white-space: pre-wrap;
 }
 
