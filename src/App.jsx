@@ -25,6 +25,7 @@ function App() {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [facingMode, setFacingMode] = useState('environment');
   const [currentCameraId, setCurrentCameraId] = useState(null);
+  const [showCameraMenu, setShowCameraMenu] = useState(false);
   
   // Native Camera States
   const [localStream, setLocalStream] = useState(null);
@@ -199,24 +200,27 @@ function App() {
     });
   };
 
+  const switchCameraTo = (deviceId, index) => {
+    setCurrentCameraIndex(index);
+    setShowCameraMenu(false);
+    startCamera(deviceId).then(stream => {
+      if (pcRef.current && stream) {
+        const videoTrack = stream.getVideoTracks()[0];
+        const audioTrack = stream.getAudioTracks()[0];
+        const senders = pcRef.current.getSenders();
+        
+        const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+        if (videoSender) videoSender.replaceTrack(videoTrack);
+        
+        const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+        if (audioSender) audioSender.replaceTrack(audioTrack);
+      }
+    });
+  };
+
   const toggleCamera = () => {
     if (cameras.length > 1) {
-      const nextIndex = (currentCameraIndex + 1) % cameras.length;
-      setCurrentCameraIndex(nextIndex);
-      const nextDevice = cameras[nextIndex];
-      startCamera(nextDevice.deviceId).then(stream => {
-        if (pcRef.current && stream) {
-          const videoTrack = stream.getVideoTracks()[0];
-          const audioTrack = stream.getAudioTracks()[0];
-          const senders = pcRef.current.getSenders();
-          
-          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-          if (videoSender) videoSender.replaceTrack(videoTrack);
-          
-          const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
-          if (audioSender) audioSender.replaceTrack(audioTrack);
-        }
-      });
+      setShowCameraMenu(!showCameraMenu);
     } else {
       const newMode = facingMode === 'user' ? 'environment' : 'user';
       setFacingMode(newMode);
@@ -410,6 +414,7 @@ function App() {
         
         {/* Top Native Bar */}
         <div className="native-top-bar">
+
           <button className="icon-btn-transparent" onClick={toggleTorch} style={{ opacity: capabilities.torch ? 1 : 0.3 }} disabled={!capabilities.torch}>
             {torchOn ? <Zap size={24} color="#fff" fill="#fff" /> : <ZapOff size={24} color="#fff" />}
           </button>
@@ -491,9 +496,47 @@ function App() {
             <div className="record-btn-inner"></div>
           </button>
 
-          <button className="flip-btn" onClick={toggleCamera}>
-            <SwitchCamera size={28} color="#fff" />
-          </button>
+          <div style={{ position: 'relative' }}>
+            {/* Camera Selection Menu */}
+            {showCameraMenu && cameras.length > 1 && (
+              <div style={{
+                position: 'absolute', bottom: '100%', right: '0', marginBottom: '1rem',
+                background: 'rgba(15, 23, 42, 0.95)', padding: '0.5rem',
+                borderRadius: '1rem', border: '1px solid #3b82f6',
+                display: 'flex', flexDirection: 'column', gap: '0.5rem',
+                minWidth: '220px', backdropFilter: 'blur(10px)', zIndex: 100
+              }}>
+                <div style={{ color: '#fff', fontSize: '0.8rem', padding: '0.25rem 0.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>Select Camera Lens</div>
+                {cameras.map((cam, idx) => {
+                  let label = cam.label || `Camera ${idx + 1}`;
+                  if (label.includes('front')) label = `Front Camera`;
+                  else if (label.includes('back')) {
+                    if (label.includes('0,')) label = `Main Back Camera`;
+                    else if (label.includes('1,')) label = `Ultra Wide / Telephoto`;
+                    else label = `Back Camera ${idx}`;
+                  }
+                  
+                  return (
+                    <button 
+                      key={cam.deviceId}
+                      onClick={() => switchCameraTo(cam.deviceId, idx)}
+                      style={{
+                        background: currentCameraId === cam.deviceId ? '#3b82f6' : 'transparent',
+                        color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '0.5rem',
+                        textAlign: 'left', fontSize: '0.9rem', width: '100%', cursor: 'pointer'
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            
+            <button className="flip-btn" onClick={toggleCamera}>
+              <SwitchCamera size={28} color="#fff" />
+            </button>
+          </div>
         </div>
       </div>
       
