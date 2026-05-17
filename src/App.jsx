@@ -55,14 +55,20 @@ function App() {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
       
-      const width = res === '4K' ? 3840 : res === '1080P' ? 1920 : res === '720P' ? 1280 : 854;
-      const height = res === '4K' ? 2160 : res === '1080P' ? 1080 : res === '720P' ? 720 : 480;
+      let idealWidth = res === '4K' ? 3840 : res === '1080P' ? 1920 : res === '720P' ? 1280 : 854;
+      let idealHeight = res === '4K' ? 2160 : res === '1080P' ? 1080 : res === '720P' ? 720 : 480;
+      
+      if (window.innerHeight > window.innerWidth) {
+        const temp = idealWidth;
+        idealWidth = idealHeight;
+        idealHeight = temp;
+      }
       
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode: mode,
-          width: { ideal: width },
-          height: { ideal: height },
+          width: { ideal: idealWidth },
+          height: { ideal: idealHeight },
           frameRate: { ideal: 30 }
         },
         audio: true
