@@ -469,9 +469,7 @@ video {
   flex: 1;
   padding: 1.5rem;
   overflow-y: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
 }
 
 .teleprompter-text {
@@ -482,6 +480,7 @@ video {
   line-height: 1.4;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
   margin: 0;
+  padding: 1rem 0;
   word-break: break-word;
   white-space: pre-wrap;
 }
