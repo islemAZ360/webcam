@@ -63,9 +63,7 @@ function App() {
   // Initialize camera
   const startCamera = async (mode = facingMode, res = resolution) => {
     try {
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => track.stop());
-      }
+      const oldStream = localStreamRef.current;
       
       const width = res === '4K' ? 3840 : res === '1080P' ? 1920 : res === '720P' ? 1280 : 854;
       const height = res === '4K' ? 2160 : res === '1080P' ? 1080 : res === '720P' ? 720 : 480;
@@ -100,10 +98,14 @@ function App() {
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       } else {
-        // Fallback if ref is not ready, set directly using state later
         setLocalStream(stream);
       }
       setIsCameraActive(true);
+
+      // Stop old tracks after new stream is ready
+      if (oldStream && oldStream !== stream) {
+        oldStream.getTracks().forEach(track => track.stop());
+      }
       
       const track = stream.getVideoTracks()[0];
       const settings = track.getSettings();
@@ -200,17 +202,21 @@ function App() {
     setResolution(nextRes);
     
     const modeToUse = currentCameraId || facingMode;
-    startCamera(modeToUse, nextRes).then(stream => {
+    startCamera(modeToUse, nextRes).then(async (stream) => {
       if (pcRef.current && stream) {
-        const videoTrack = stream.getVideoTracks()[0];
-        const audioTrack = stream.getAudioTracks()[0];
-        const senders = pcRef.current.getSenders();
-        
-        const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-        if (videoSender) videoSender.replaceTrack(videoTrack);
-        
-        const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
-        if (audioSender) audioSender.replaceTrack(audioTrack);
+        try {
+          const videoTrack = stream.getVideoTracks()[0];
+          const audioTrack = stream.getAudioTracks()[0];
+          const senders = pcRef.current.getSenders();
+          
+          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+          if (videoSender && videoTrack) await videoSender.replaceTrack(videoTrack);
+          
+          const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+          if (audioSender && audioTrack) await audioSender.replaceTrack(audioTrack);
+        } catch (err) {
+          console.error('Track replacement failed:', err);
+        }
       }
     });
   };
@@ -218,17 +224,21 @@ function App() {
   const switchCameraTo = (deviceId, index) => {
     setCurrentCameraIndex(index);
     setShowCameraMenu(false);
-    startCamera(deviceId).then(stream => {
+    startCamera(deviceId).then(async (stream) => {
       if (pcRef.current && stream) {
-        const videoTrack = stream.getVideoTracks()[0];
-        const audioTrack = stream.getAudioTracks()[0];
-        const senders = pcRef.current.getSenders();
-        
-        const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-        if (videoSender) videoSender.replaceTrack(videoTrack);
-        
-        const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
-        if (audioSender) audioSender.replaceTrack(audioTrack);
+        try {
+          const videoTrack = stream.getVideoTracks()[0];
+          const audioTrack = stream.getAudioTracks()[0];
+          const senders = pcRef.current.getSenders();
+          
+          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+          if (videoSender && videoTrack) await videoSender.replaceTrack(videoTrack);
+          
+          const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+          if (audioSender && audioTrack) await audioSender.replaceTrack(audioTrack);
+        } catch (err) {
+          console.error('Track replacement failed:', err);
+        }
       }
     });
   };
@@ -239,17 +249,21 @@ function App() {
     } else {
       const newMode = facingMode === 'user' ? 'environment' : 'user';
       setFacingMode(newMode);
-      startCamera(newMode).then(stream => {
+      startCamera(newMode).then(async (stream) => {
         if (pcRef.current && stream) {
-          const videoTrack = stream.getVideoTracks()[0];
-          const audioTrack = stream.getAudioTracks()[0];
-          const senders = pcRef.current.getSenders();
-          
-          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-          if (videoSender) videoSender.replaceTrack(videoTrack);
-          
-          const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
-          if (audioSender) audioSender.replaceTrack(audioTrack);
+          try {
+            const videoTrack = stream.getVideoTracks()[0];
+            const audioTrack = stream.getAudioTracks()[0];
+            const senders = pcRef.current.getSenders();
+            
+            const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+            if (videoSender && videoTrack) await videoSender.replaceTrack(videoTrack);
+            
+            const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+            if (audioSender && audioTrack) await audioSender.replaceTrack(audioTrack);
+          } catch (err) {
+            console.error('Track replacement failed:', err);
+          }
         }
       });
     }
