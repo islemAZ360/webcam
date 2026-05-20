@@ -218,18 +218,28 @@ function App() {
         if (settings.whiteBalanceMode) setWhiteBalanceMode(settings.whiteBalanceMode);
       }
       
-      // Smart probe: detect supported modes (only once per camera)
-      if (!hasProbed.current) {
-        hasProbed.current = true;
-        setIsProbing(true);
-        const probeTarget = settings.deviceId || mode;
-        probeCameraModes(probeTarget).then(modes => {
-          setSupportedModes(modes);
-          // Find current mode index
-          const idx = modes.findIndex(m => m.label === detectedLabel && Math.abs(m.fps - (settings.frameRate || 30)) < 5);
-          setCurrentModeIndex(idx >= 0 ? idx : 0);
-          setIsProbing(false);
-        });
+      // Fast mode estimate from capabilities (no extra streams = no stutter)
+      if (!hasProbed.current && track.getCapabilities) {
+        const caps = track.getCapabilities();
+        const maxW = Math.max(caps.width?.max || 0, caps.height?.max || 0);
+        const maxFps = caps.frameRate?.max || 30;
+        const estimated = [];
+        const resList = [
+          { label: '4K', width: 3840, height: 2160 },
+          { label: '1080P', width: 1920, height: 1080 },
+          { label: '720P', width: 1280, height: 720 },
+          { label: '480P', width: 854, height: 480 },
+        ];
+        for (const r of resList) {
+          if (maxW >= r.width) {
+            if (maxFps >= 58) estimated.push({ ...r, fps: 60 });
+            estimated.push({ ...r, fps: 30 });
+          }
+        }
+        if (estimated.length === 0) estimated.push({ label: '480P', width: 854, height: 480, fps: 30 });
+        setSupportedModes(estimated);
+        const idx = estimated.findIndex(m => m.label === detectedLabel && Math.abs(m.fps - (settings.frameRate || 30)) < 5);
+        setCurrentModeIndex(idx >= 0 ? idx : 0);
       }
       
       return stream;
@@ -344,6 +354,25 @@ function App() {
     const val = parseFloat(e.target.value);
     setBrightness(val);
     applyAdvancedConstraint({ brightness: val });
+  };
+
+  // Open settings and run deep probe if not done yet
+  const openSettingsPanel = () => {
+    setShowSettingsPanel(true);
+    if (!hasProbed.current) {
+      hasProbed.current = true;
+      setIsProbing(true);
+      const probeTarget = currentCameraId || facingMode;
+      probeCameraModes(probeTarget).then(modes => {
+        setSupportedModes(modes);
+        const idx = modes.findIndex(m => m.label === actualResolution && Math.abs(m.fps - actualFps) < 5);
+        setCurrentModeIndex(idx >= 0 ? idx : 0);
+        setIsProbing(false);
+        // Restart current camera to restore the stream after probing
+        const modeToUse = currentCameraId || facingMode;
+        startCamera(modeToUse, resolution, targetFps).then(replaceWebRTCTracks);
+      });
+    }
   };
 
   // Cycle through detected modes (resolution + fps)
@@ -596,7 +625,7 @@ function App() {
             </div>
 
             <div className="cam-top-right">
-              <button className="ctrl-btn" onClick={() => setShowSettingsPanel(!showSettingsPanel)}>
+              <button className="ctrl-btn" onClick={openSettingsPanel}>
                 <Settings size={20} color={showSettingsPanel ? '#818cf8' : '#fff'} />
               </button>
             </div>
