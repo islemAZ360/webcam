@@ -487,23 +487,23 @@ function App() {
                 muted 
                 style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)' }}
               />
-
-              {/* Teleprompter Overlay inside preview */}
-              {showTeleprompterOverlay && teleprompter && teleprompter.isActive && (
-                <div className="teleprompter-overlay">
-                  <div className="teleprompter-header">
-                    <span className="tp-name">{teleprompter.name}</span>
-                    <span className="tp-counter">{teleprompter.currentIndex + 1} / {teleprompter.parts.length}</span>
-                  </div>
-                  <div className="teleprompter-content">
-                    <p className="teleprompter-text">
-                      {teleprompter.parts[teleprompter.currentIndex]}
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
+
+          {/* Teleprompter Overlay (full screen) */}
+          {showTeleprompterOverlay && teleprompter && teleprompter.isActive && (
+            <div className="teleprompter-overlay">
+              <div className="teleprompter-header">
+                <span className="tp-name">{teleprompter.name}</span>
+                <span className="tp-counter">{teleprompter.currentIndex + 1} / {teleprompter.parts.length}</span>
+              </div>
+              <div className="teleprompter-content">
+                <p className="teleprompter-text">
+                  {teleprompter.parts[teleprompter.currentIndex]}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Sliders Section */}
           <div className="cam-sliders">
