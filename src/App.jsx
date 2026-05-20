@@ -652,7 +652,19 @@ function App() {
                 <span className="tp-counter">{teleprompter.currentIndex + 1} / {teleprompter.parts.length}</span>
               </div>
               <div className="teleprompter-content">
-                <p className="teleprompter-text">
+                <p className="teleprompter-text" style={{
+                  fontSize: (() => {
+                    const text = teleprompter.parts[teleprompter.currentIndex] || '';
+                    const len = text.length;
+                    if (len < 80) return '1.6rem';
+                    if (len < 150) return '1.35rem';
+                    if (len < 250) return '1.15rem';
+                    if (len < 400) return '1rem';
+                    if (len < 600) return '0.88rem';
+                    if (len < 900) return '0.78rem';
+                    return '0.7rem';
+                  })()
+                }}>
                   {teleprompter.parts[teleprompter.currentIndex]}
                 </p>
               </div>
