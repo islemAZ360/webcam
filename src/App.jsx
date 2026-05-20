@@ -378,194 +378,193 @@ function App() {
 
   return (
     <>
-      <div className="status-badge" style={{ position: 'absolute', top: '2rem', left: '2rem' }}>
-        <div className={`dot ${status}`}></div>
-        {status === 'disconnected' ? 'Disconnected' : 
-         status === 'connecting' ? 'Connecting...' : 
-         status === 'connected' ? 'Connected' : 'Error'}
-      </div>
-
-      <div className="glass-card" style={{ display: !isCameraActive ? 'flex' : 'none' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-          <div style={{ background: 'rgba(99, 102, 241, 0.2)', padding: '1rem', borderRadius: '50%' }}>
-            <Camera size={40} color="var(--primary)" />
+      {/* Connection Screen */}
+      {!isCameraActive && (
+        <>
+          <div className="status-badge" style={{ position: 'absolute', top: '2rem', left: '2rem' }}>
+            <div className={`dot ${status}`}></div>
+            {status === 'disconnected' ? 'Disconnected' : 
+             status === 'connecting' ? 'Connecting...' : 
+             status === 'connected' ? 'Connected' : 'Error'}
           </div>
-        </div>
-        <h1>Connect to PC</h1>
-        <p>Enter the 6-digit code shown on your computer screen to start streaming.</p>
-        
-        {errorMsg && (
-          <div style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '0.75rem', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
-            {errorMsg}
-          </div>
-        )}
 
-        <form onSubmit={connectToPC} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <input 
-            type="text" 
-            maxLength="6"
-            placeholder="000000"
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-          />
-          <button type="submit" disabled={status === 'connecting' || code.length < 6}>
-            {status === 'connecting' ? (
-              <><div className="loader"></div> Connecting...</>
-            ) : (
-              <><Video size={20} /> Start Streaming</>
-            )}
-          </button>
-        </form>
-      </div>
-
-      <div className="video-container" style={{ display: isCameraActive ? 'block' : 'none' }}>
-        <video 
-          ref={localVideoRef} 
-          autoPlay 
-          playsInline 
-          muted 
-          style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)' }}
-        />
-        
-        {/* Top Native Bar */}
-        <div className="native-top-bar">
-
-          <button className="icon-btn-transparent" onClick={toggleTorch} style={{ opacity: capabilities.torch ? 1 : 0.3 }} disabled={!capabilities.torch}>
-            {torchOn ? <Zap size={24} color="#fff" fill="#fff" /> : <ZapOff size={24} color="#fff" />}
-          </button>
-          {teleprompter && teleprompter.isActive ? (
-            <button 
-              className="icon-btn-transparent" 
-              onClick={() => setShowTeleprompterOverlay(!showTeleprompterOverlay)}
-              style={{ background: showTeleprompterOverlay ? 'rgba(59, 130, 246, 0.5)' : 'rgba(59, 130, 246, 0.2)' }}
-            >
-              <FileText size={24} color="#3b82f6" />
-            </button>
-          ) : (
-            <button className="icon-btn-transparent" style={{ opacity: 0.3 }} disabled>
-              <FileText size={24} color="#fff" />
-            </button>
-          )}
-          <button className="icon-btn-transparent" onClick={toggleResolution}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontWeight: 'bold', fontSize: '0.7rem', color: '#fff' }}>
-              <span>{actualResolution}</span>
-              <span style={{ background: '#fff', color: '#000', padding: '1px 4px', borderRadius: '4px', marginTop: '2px' }}>{actualFps}</span>
+          <div className="glass-card">
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
+              <div style={{ background: 'rgba(99, 102, 241, 0.15)', padding: '1rem', borderRadius: '50%' }}>
+                <Camera size={36} color="var(--primary)" />
+              </div>
             </div>
-          </button>
-          <button className="icon-btn-transparent">
-            <Settings size={24} color="#fff" />
-          </button>
-        </div>
-
-        {/* Zoom Slider */}
-        <div className="native-slider-container zoom-slider">
-          <div style={{ color: '#fff', fontSize: '0.8rem', marginBottom: '0.5rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Zoom</div>
-          <div className="slider-wrapper">
-            <span style={{ color: '#fff', fontSize: '0.8rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>1x</span>
-            <input 
-              type="range" 
-              min={capabilities.zoom ? capabilities.zoom.min : 1} 
-              max={capabilities.zoom ? capabilities.zoom.max : 5} 
-              step={capabilities.zoom ? capabilities.zoom.step : 0.1} 
-              value={zoom} 
-              onChange={handleZoomChange}
-              className="native-slider"
-            />
-            <span style={{ color: '#fff', fontSize: '0.8rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Max</span>
-          </div>
-          <div style={{ color: '#facc15', fontSize: '1.2rem', marginTop: '0.5rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
-            {zoom.toFixed(1)}x
-          </div>
-        </div>
-
-        {/* Exposure/Brightness Slider */}
-        {capabilities.exposureCompensation && (
-          <div className="native-slider-container exposure-slider">
-            <div style={{ color: '#fff', fontSize: '0.8rem', marginBottom: '0.5rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Bright</div>
-            <div className="slider-wrapper">
-              <span style={{ color: '#fff', fontSize: '0.8rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>-</span>
-              <input 
-                type="range" 
-                min={capabilities.exposureCompensation.min} 
-                max={capabilities.exposureCompensation.max} 
-                step={capabilities.exposureCompensation.step} 
-                value={exposure} 
-                onChange={handleExposureChange}
-                className="native-slider"
-              />
-              <span style={{ color: '#fff', fontSize: '0.8rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>+</span>
-            </div>
-            <div style={{ color: '#facc15', fontSize: '1.2rem', marginTop: '0.5rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
-              {exposure > 0 ? '+' : ''}{exposure.toFixed(1)}
-            </div>
-          </div>
-        )}
-
-        {/* Bottom Native Bar */}
-        <div className="native-bottom-bar">
-          <div className="gallery-thumbnail" style={{ opacity: status === 'connected' ? 1 : 0.3 }} title={status}>
-             <Monitor size={20} color="#fff" />
-          </div>
-          
-          <button className="record-btn" onClick={stopConnection} title="Stop Camera">
-            <div className="record-btn-inner"></div>
-          </button>
-
-          <div style={{ position: 'relative' }}>
-            {/* Camera Selection Menu */}
-            {showCameraMenu && cameras.length > 1 && (
-              <div style={{
-                position: 'absolute', bottom: '100%', right: '0', marginBottom: '1rem',
-                background: 'rgba(15, 23, 42, 0.95)', padding: '0.5rem',
-                borderRadius: '1rem', border: '1px solid #3b82f6',
-                display: 'flex', flexDirection: 'column', gap: '0.5rem',
-                minWidth: '220px', backdropFilter: 'blur(10px)', zIndex: 100
-              }}>
-                <div style={{ color: '#fff', fontSize: '0.8rem', padding: '0.25rem 0.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>Select Camera Lens</div>
-                {cameras.map((cam, idx) => {
-                  let label = cam.label || `Camera ${idx + 1}`;
-                  if (label.includes('front')) label = `Front Camera`;
-                  else if (label.includes('back')) {
-                    if (label.includes('0,')) label = `Main Back Camera`;
-                    else if (label.includes('1,')) label = `Ultra Wide / Telephoto`;
-                    else label = `Back Camera ${idx}`;
-                  }
-                  
-                  return (
-                    <button 
-                      key={cam.deviceId}
-                      onClick={() => switchCameraTo(cam.deviceId, idx)}
-                      style={{
-                        background: currentCameraId === cam.deviceId ? '#3b82f6' : 'transparent',
-                        color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '0.5rem',
-                        textAlign: 'left', fontSize: '0.9rem', width: '100%', cursor: 'pointer'
-                      }}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
+            <h1>Connect to PC</h1>
+            <p>Enter the 6-digit code shown on your computer screen to start streaming.</p>
+            
+            {errorMsg && (
+              <div style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.08)', padding: '0.75rem', borderRadius: '0.75rem', fontSize: '0.85rem', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                {errorMsg}
               </div>
             )}
+
+            <form onSubmit={connectToPC} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <input 
+                type="text" 
+                maxLength="6"
+                placeholder="000000"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              />
+              <button type="submit" disabled={status === 'connecting' || code.length < 6}>
+                {status === 'connecting' ? (
+                  <><div className="loader"></div> Connecting...</>
+                ) : (
+                  <><Video size={20} /> Start Streaming</>
+                )}
+              </button>
+            </form>
+          </div>
+        </>
+      )}
+
+      {/* Camera Layout */}
+      {isCameraActive && (
+        <div className="camera-layout">
+          {/* Top Controls */}
+          <div className="cam-top-controls">
+            <div className="cam-top-left">
+              <button className="ctrl-btn" onClick={toggleTorch} disabled={!capabilities.torch}>
+                {torchOn ? <Zap size={20} color="#facc15" fill="#facc15" /> : <ZapOff size={20} color="#fff" />}
+              </button>
+            </div>
+
+            <div className="cam-top-center">
+              {teleprompter && teleprompter.isActive ? (
+                <button 
+                  className={`ctrl-btn ${showTeleprompterOverlay ? 'active' : ''}`}
+                  onClick={() => setShowTeleprompterOverlay(!showTeleprompterOverlay)}
+                >
+                  <FileText size={20} color="#818cf8" />
+                </button>
+              ) : (
+                <button className="ctrl-btn" disabled>
+                  <FileText size={20} color="#fff" />
+                </button>
+              )}
+
+              <button className="ctrl-btn" onClick={toggleResolution}>
+                <div className="res-badge">
+                  <span>{actualResolution}</span>
+                  <span className="fps-tag">{actualFps}</span>
+                </div>
+              </button>
+            </div>
+
+            <div className="cam-top-right">
+              <button className="ctrl-btn">
+                <Settings size={20} color="#fff" />
+              </button>
+            </div>
+          </div>
+
+          {/* Camera Preview */}
+          <div className="cam-preview-area">
+            <div className="cam-preview-frame">
+              <video 
+                ref={localVideoRef} 
+                autoPlay 
+                playsInline 
+                muted 
+                style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)' }}
+              />
+
+              {/* Teleprompter Overlay inside preview */}
+              {showTeleprompterOverlay && teleprompter && teleprompter.isActive && (
+                <div className="teleprompter-overlay">
+                  <div className="teleprompter-header">
+                    <span className="tp-name">{teleprompter.name}</span>
+                    <span className="tp-counter">{teleprompter.currentIndex + 1} / {teleprompter.parts.length}</span>
+                  </div>
+                  <div className="teleprompter-content">
+                    <p className="teleprompter-text">
+                      {teleprompter.parts[teleprompter.currentIndex]}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sliders Section */}
+          <div className="cam-sliders">
+            <div className="slider-row">
+              <span className="slider-label">Zoom</span>
+              <input 
+                type="range" 
+                min={capabilities.zoom ? capabilities.zoom.min : 1} 
+                max={capabilities.zoom ? capabilities.zoom.max : 5} 
+                step={capabilities.zoom ? capabilities.zoom.step : 0.1} 
+                value={zoom} 
+                onChange={handleZoomChange}
+                className="slider-track"
+              />
+              <span className="slider-value">{zoom.toFixed(1)}x</span>
+            </div>
+
+            {capabilities.exposureCompensation && (
+              <div className="slider-row">
+                <span className="slider-label">Bright</span>
+                <input 
+                  type="range" 
+                  min={capabilities.exposureCompensation.min} 
+                  max={capabilities.exposureCompensation.max} 
+                  step={capabilities.exposureCompensation.step} 
+                  value={exposure} 
+                  onChange={handleExposureChange}
+                  className="slider-track"
+                />
+                <span className="slider-value">{exposure > 0 ? '+' : ''}{exposure.toFixed(1)}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Controls */}
+          <div className="cam-bottom-controls">
+            <div className="cam-status-indicator">
+              <Monitor size={22} color="#fff" />
+              <div className={`status-dot ${status}`}></div>
+            </div>
             
-            <button className="flip-btn" onClick={toggleCamera}>
-              <SwitchCamera size={28} color="#fff" />
+            <button className="stop-btn" onClick={stopConnection} title="Stop Camera">
+              <div className="stop-btn-inner"></div>
             </button>
-          </div>
-        </div>
-      </div>
-      
-      {/* Teleprompter Overlay */}
-      {showTeleprompterOverlay && teleprompter && teleprompter.isActive && (
-        <div className="teleprompter-overlay">
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-            <span style={{ color: '#3b82f6', fontWeight: 'bold' }}>{teleprompter.name}</span>
-            <span style={{ color: '#94a3b8' }}>{teleprompter.currentIndex + 1} / {teleprompter.parts.length}</span>
-          </div>
-          <div className="teleprompter-content">
-            <p className="teleprompter-text">
-              {teleprompter.parts[teleprompter.currentIndex]}
-            </p>
+
+            <div style={{ position: 'relative' }}>
+              {showCameraMenu && cameras.length > 1 && (
+                <div className="camera-menu">
+                  <div className="camera-menu-title">Select Camera</div>
+                  {cameras.map((cam, idx) => {
+                    let label = cam.label || `Camera ${idx + 1}`;
+                    if (label.includes('front')) label = `Front Camera`;
+                    else if (label.includes('back')) {
+                      if (label.includes('0,')) label = `Main Back Camera`;
+                      else if (label.includes('1,')) label = `Ultra Wide / Telephoto`;
+                      else label = `Back Camera ${idx}`;
+                    }
+                    
+                    return (
+                      <button 
+                        key={cam.deviceId}
+                        className={`camera-menu-item ${currentCameraId === cam.deviceId ? 'selected' : ''}`}
+                        onClick={() => switchCameraTo(cam.deviceId, idx)}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              
+              <button className="switch-cam-btn" onClick={toggleCamera}>
+                <SwitchCamera size={24} color="#fff" />
+              </button>
+            </div>
           </div>
         </div>
       )}
