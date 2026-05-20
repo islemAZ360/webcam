@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Camera, Video, VideoOff, SwitchCamera, Zap, ZapOff, Settings, Activity, Monitor, FileText } from 'lucide-react';
+import { Camera, Video, VideoOff, SwitchCamera, Zap, ZapOff, Settings, Activity, Monitor, FileText, X, Focus, Sun, Palette, Contrast, Eye } from 'lucide-react';
 import { db } from './firebase';
 import { collection, doc, getDoc, setDoc, updateDoc, onSnapshot, addDoc } from 'firebase/firestore';
 import './index.css';
@@ -20,17 +20,15 @@ const servers = {
 
 function App() {
   const [code, setCode] = useState('');
-  const [status, setStatus] = useState('disconnected'); // disconnected, connecting, connected, error
+  const [status, setStatus] = useState('disconnected');
   const [errorMsg, setErrorMsg] = useState('');
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [facingMode, setFacingMode] = useState('environment');
   const [currentCameraId, setCurrentCameraId] = useState(null);
   const [showCameraMenu, setShowCameraMenu] = useState(false);
   
-  // Native Camera States
   const [localStream, setLocalStream] = useState(null);
   
-  // Native Camera States
   const [torchOn, setTorchOn] = useState(false);
   const [cameras, setCameras] = useState([]);
   const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
@@ -38,11 +36,26 @@ function App() {
   const [exposure, setExposure] = useState(0);
   const [capabilities, setCapabilities] = useState({});
   
-  // Smart Resolution States
-  const [supportedResolutions, setSupportedResolutions] = useState(['480P', '720P', '1080P', '4K']);
+  // Smart Resolution & FPS States
+  const [supportedModes, setSupportedModes] = useState([]);
+  const [currentModeIndex, setCurrentModeIndex] = useState(0);
   const [resolution, setResolution] = useState('1080P');
+  const [targetFps, setTargetFps] = useState(30);
   const [actualResolution, setActualResolution] = useState('1080P');
   const [actualFps, setActualFps] = useState(30);
+  const [isProbing, setIsProbing] = useState(false);
+  
+  // Advanced Camera Controls
+  const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+  const [focusMode, setFocusMode] = useState('continuous');
+  const [focusDistance, setFocusDistance] = useState(0);
+  const [whiteBalanceMode, setWhiteBalanceMode] = useState('continuous');
+  const [colorTemperature, setColorTemperature] = useState(5500);
+  const [iso, setIso] = useState(100);
+  const [contrast, setContrast] = useState(50);
+  const [saturation, setSaturation] = useState(50);
+  const [sharpness, setSharpness] = useState(50);
+  const [brightness, setBrightness] = useState(50);
   
   // Teleprompter States
   const [teleprompter, setTeleprompter] = useState(null);
@@ -53,6 +66,7 @@ function App() {
   const pcRef = useRef(null);
   const localStreamRef = useRef(null);
   const roomRef = useRef(null);
+  const hasProbed = useRef(false);
 
   useEffect(() => {
     if (localVideoRef.current && localStream && isCameraActive) {
@@ -60,8 +74,72 @@ function App() {
     }
   }, [localStream, isCameraActive]);
 
+  // Probe camera for exact supported resolution+fps combos
+  const probeCameraModes = async (deviceIdOrMode) => {
+    const allModes = [
+      { label: '4K', width: 3840, height: 2160 },
+      { label: '1080P', width: 1920, height: 1080 },
+      { label: '720P', width: 1280, height: 720 },
+      { label: '480P', width: 854, height: 480 },
+    ];
+    const fpsOptions = [60, 30];
+    const results = [];
+    
+    for (const mode of allModes) {
+      for (const fps of fpsOptions) {
+        let videoConstraints = {
+          width: { exact: mode.width },
+          height: { exact: mode.height },
+          frameRate: { exact: fps }
+        };
+        if (deviceIdOrMode && deviceIdOrMode !== 'user' && deviceIdOrMode !== 'environment') {
+          videoConstraints.deviceId = { exact: deviceIdOrMode };
+        } else if (deviceIdOrMode) {
+          videoConstraints.facingMode = deviceIdOrMode;
+        }
+        try {
+          const testStream = await navigator.mediaDevices.getUserMedia({
+            video: videoConstraints, audio: false
+          });
+          const track = testStream.getVideoTracks()[0];
+          const settings = track.getSettings();
+          const realFps = Math.round(settings.frameRate || fps);
+          const realW = Math.max(settings.width || 0, settings.height || 0);
+          testStream.getTracks().forEach(t => t.stop());
+          
+          // Verify the hardware actually delivered what we asked
+          let verifiedLabel = mode.label;
+          if (realW < mode.width * 0.8) continue; // Hardware couldn't deliver
+          
+          results.push({ label: verifiedLabel, width: mode.width, height: mode.height, fps: realFps });
+        } catch (e) {
+          // Not supported, skip
+        }
+      }
+    }
+    
+    // Deduplicate (same label+fps)
+    const unique = [];
+    const seen = new Set();
+    for (const r of results) {
+      const key = `${r.label}_${r.fps}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(r);
+      }
+    }
+    
+    // Sort: highest resolution first, then highest fps
+    unique.sort((a, b) => {
+      if (b.width !== a.width) return b.width - a.width;
+      return b.fps - a.fps;
+    });
+    
+    return unique.length > 0 ? unique : [{ label: '480P', width: 854, height: 480, fps: 30 }];
+  };
+
   // Initialize camera
-  const startCamera = async (mode = facingMode, res = resolution) => {
+  const startCamera = async (mode = facingMode, res = resolution, fps = targetFps) => {
     try {
       const oldStream = localStreamRef.current;
       
@@ -71,7 +149,7 @@ function App() {
       let videoConstraints = {
         width: { ideal: width },
         height: { ideal: height },
-        frameRate: { ideal: 30 }
+        frameRate: { ideal: fps }
       };
 
       if (mode !== 'user' && mode !== 'environment') {
@@ -102,7 +180,6 @@ function App() {
       }
       setIsCameraActive(true);
 
-      // Stop old tracks after new stream is ready
       if (oldStream && oldStream !== stream) {
         oldStream.getTracks().forEach(track => track.stop());
       }
@@ -117,7 +194,6 @@ function App() {
         setCameras(videoDevices);
       }
       
-      // Determine actual resolution applied by hardware
       const actualW = Math.max(settings.width || 0, settings.height || 0);
       let detectedLabel = '480P';
       if (actualW >= 3840) detectedLabel = '4K';
@@ -127,24 +203,33 @@ function App() {
       setActualResolution(detectedLabel);
       if (settings.frameRate) setActualFps(Math.round(settings.frameRate));
       
-      // Smart detection: remove unsupported higher resolutions if fallback occurred
-      if (res === '4K' && detectedLabel !== '4K') {
-         setSupportedResolutions(prev => prev.filter(r => r !== '4K'));
-         setResolution(detectedLabel);
-      } else if (res === '1080P' && detectedLabel !== '1080P' && detectedLabel !== '4K') {
-         setSupportedResolutions(prev => prev.filter(r => r !== '1080P' && r !== '4K'));
-         setResolution(detectedLabel);
-      }
-      
       if (track.getCapabilities) {
         const caps = track.getCapabilities();
         setCapabilities(caps);
-        if (caps.zoom && !zoom) {
-           setZoom(caps.zoom.min || 1);
-        }
-        if (caps.exposureCompensation && exposure === 0) {
-           setExposure(0);
-        }
+        if (caps.zoom && !zoom) setZoom(caps.zoom.min || 1);
+        if (caps.focusDistance) setFocusDistance(caps.focusDistance.min || 0);
+        if (caps.colorTemperature) setColorTemperature(settings.colorTemperature || 5500);
+        if (caps.iso) setIso(settings.iso || caps.iso.min || 100);
+        if (caps.contrast) setContrast(settings.contrast || caps.contrast.min || 50);
+        if (caps.saturation) setSaturation(settings.saturation || caps.saturation.min || 50);
+        if (caps.sharpness) setSharpness(settings.sharpness || caps.sharpness.min || 50);
+        if (caps.brightness) setBrightness(settings.brightness || caps.brightness.min || 50);
+        if (settings.focusMode) setFocusMode(settings.focusMode);
+        if (settings.whiteBalanceMode) setWhiteBalanceMode(settings.whiteBalanceMode);
+      }
+      
+      // Smart probe: detect supported modes (only once per camera)
+      if (!hasProbed.current) {
+        hasProbed.current = true;
+        setIsProbing(true);
+        const probeTarget = settings.deviceId || mode;
+        probeCameraModes(probeTarget).then(modes => {
+          setSupportedModes(modes);
+          // Find current mode index
+          const idx = modes.findIndex(m => m.label === detectedLabel && Math.abs(m.fps - (settings.frameRate || 30)) < 5);
+          setCurrentModeIndex(idx >= 0 ? idx : 0);
+          setIsProbing(false);
+        });
       }
       
       return stream;
@@ -153,6 +238,34 @@ function App() {
       alert('Camera error: ' + err.message + '\nTry refreshing or picking another lens.');
       setErrorMsg('Cannot access camera. Please allow permissions.');
       return null;
+    }
+  };
+
+  // Helper: replace WebRTC tracks after camera change
+  const replaceWebRTCTracks = async (stream) => {
+    if (pcRef.current && stream) {
+      try {
+        const videoTrack = stream.getVideoTracks()[0];
+        const audioTrack = stream.getAudioTracks()[0];
+        const senders = pcRef.current.getSenders();
+        const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+        if (videoSender && videoTrack) await videoSender.replaceTrack(videoTrack);
+        const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+        if (audioSender && audioTrack) await audioSender.replaceTrack(audioTrack);
+      } catch (err) {
+        console.error('Track replacement failed:', err);
+      }
+    }
+  };
+
+  // Apply a camera constraint (advanced setting)
+  const applyAdvancedConstraint = async (constraintObj) => {
+    if (!localStreamRef.current) return;
+    const track = localStreamRef.current.getVideoTracks()[0];
+    try {
+      await track.applyConstraints({ advanced: [constraintObj] });
+    } catch (err) {
+      console.warn('Constraint not supported:', constraintObj, err);
     }
   };
 
@@ -172,75 +285,102 @@ function App() {
   const handleZoomChange = async (e) => {
     const newZoom = parseFloat(e.target.value);
     setZoom(newZoom);
-    if (!localStreamRef.current) return;
-    const track = localStreamRef.current.getVideoTracks()[0];
-    if (capabilities.zoom) {
-      try {
-        await track.applyConstraints({ advanced: [{ zoom: newZoom }] });
-      } catch (err) {}
-    }
+    applyAdvancedConstraint({ zoom: newZoom });
   };
 
   const handleExposureChange = async (e) => {
     const newExp = parseFloat(e.target.value);
     setExposure(newExp);
-    if (!localStreamRef.current) return;
-    const track = localStreamRef.current.getVideoTracks()[0];
-    if (capabilities.exposureCompensation) {
-      try {
-        await track.applyConstraints({ advanced: [{ exposureCompensation: newExp }] });
-      } catch (err) {}
-    }
+    applyAdvancedConstraint({ exposureCompensation: newExp });
   };
 
-  const toggleResolution = () => {
-    let currentIndex = supportedResolutions.indexOf(resolution);
-    if (currentIndex === -1) currentIndex = supportedResolutions.indexOf(actualResolution);
-    
-    const nextIndex = (currentIndex + 1) % supportedResolutions.length;
-    const nextRes = supportedResolutions[nextIndex];
-    setResolution(nextRes);
+  const handleFocusModeChange = async (mode) => {
+    setFocusMode(mode);
+    applyAdvancedConstraint({ focusMode: mode });
+  };
+
+  const handleFocusDistanceChange = async (e) => {
+    const val = parseFloat(e.target.value);
+    setFocusDistance(val);
+    applyAdvancedConstraint({ focusDistance: val });
+  };
+
+  const handleWhiteBalanceModeChange = async (mode) => {
+    setWhiteBalanceMode(mode);
+    applyAdvancedConstraint({ whiteBalanceMode: mode });
+  };
+
+  const handleColorTemperatureChange = async (e) => {
+    const val = parseFloat(e.target.value);
+    setColorTemperature(val);
+    applyAdvancedConstraint({ colorTemperature: val });
+  };
+
+  const handleIsoChange = async (e) => {
+    const val = parseFloat(e.target.value);
+    setIso(val);
+    applyAdvancedConstraint({ iso: val });
+  };
+
+  const handleContrastChange = async (e) => {
+    const val = parseFloat(e.target.value);
+    setContrast(val);
+    applyAdvancedConstraint({ contrast: val });
+  };
+
+  const handleSaturationChange = async (e) => {
+    const val = parseFloat(e.target.value);
+    setSaturation(val);
+    applyAdvancedConstraint({ saturation: val });
+  };
+
+  const handleSharpnessChange = async (e) => {
+    const val = parseFloat(e.target.value);
+    setSharpness(val);
+    applyAdvancedConstraint({ sharpness: val });
+  };
+
+  const handleBrightnessChange = async (e) => {
+    const val = parseFloat(e.target.value);
+    setBrightness(val);
+    applyAdvancedConstraint({ brightness: val });
+  };
+
+  // Cycle through detected modes (resolution + fps)
+  const toggleMode = () => {
+    if (supportedModes.length === 0) return;
+    const nextIdx = (currentModeIndex + 1) % supportedModes.length;
+    const nextMode = supportedModes[nextIdx];
+    setCurrentModeIndex(nextIdx);
+    setResolution(nextMode.label);
+    setTargetFps(nextMode.fps);
     
     const modeToUse = currentCameraId || facingMode;
-    startCamera(modeToUse, nextRes).then(async (stream) => {
-      if (pcRef.current && stream) {
-        try {
-          const videoTrack = stream.getVideoTracks()[0];
-          const audioTrack = stream.getAudioTracks()[0];
-          const senders = pcRef.current.getSenders();
-          
-          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-          if (videoSender && videoTrack) await videoSender.replaceTrack(videoTrack);
-          
-          const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
-          if (audioSender && audioTrack) await audioSender.replaceTrack(audioTrack);
-        } catch (err) {
-          console.error('Track replacement failed:', err);
-        }
-      }
-    });
+    startCamera(modeToUse, nextMode.label, nextMode.fps).then(replaceWebRTCTracks);
+  };
+
+  // Toggle FPS for the current resolution
+  const toggleFps = () => {
+    if (supportedModes.length === 0) return;
+    // Find next mode with same resolution but different fps
+    const currentMode = supportedModes[currentModeIndex];
+    const sameLabelModes = supportedModes.map((m, i) => ({ ...m, idx: i })).filter(m => m.label === currentMode.label);
+    if (sameLabelModes.length <= 1) return; // No other fps option
+    const currentInSame = sameLabelModes.findIndex(m => m.idx === currentModeIndex);
+    const nextInSame = (currentInSame + 1) % sameLabelModes.length;
+    const nextMode = sameLabelModes[nextInSame];
+    setCurrentModeIndex(nextMode.idx);
+    setTargetFps(nextMode.fps);
+    
+    const modeToUse = currentCameraId || facingMode;
+    startCamera(modeToUse, nextMode.label, nextMode.fps).then(replaceWebRTCTracks);
   };
 
   const switchCameraTo = (deviceId, index) => {
     setCurrentCameraIndex(index);
     setShowCameraMenu(false);
-    startCamera(deviceId).then(async (stream) => {
-      if (pcRef.current && stream) {
-        try {
-          const videoTrack = stream.getVideoTracks()[0];
-          const audioTrack = stream.getAudioTracks()[0];
-          const senders = pcRef.current.getSenders();
-          
-          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-          if (videoSender && videoTrack) await videoSender.replaceTrack(videoTrack);
-          
-          const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
-          if (audioSender && audioTrack) await audioSender.replaceTrack(audioTrack);
-        } catch (err) {
-          console.error('Track replacement failed:', err);
-        }
-      }
-    });
+    hasProbed.current = false; // Re-probe for new camera
+    startCamera(deviceId).then(replaceWebRTCTracks);
   };
 
   const toggleCamera = () => {
@@ -249,23 +389,8 @@ function App() {
     } else {
       const newMode = facingMode === 'user' ? 'environment' : 'user';
       setFacingMode(newMode);
-      startCamera(newMode).then(async (stream) => {
-        if (pcRef.current && stream) {
-          try {
-            const videoTrack = stream.getVideoTracks()[0];
-            const audioTrack = stream.getAudioTracks()[0];
-            const senders = pcRef.current.getSenders();
-            
-            const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-            if (videoSender && videoTrack) await videoSender.replaceTrack(videoTrack);
-            
-            const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
-            if (audioSender && audioTrack) await audioSender.replaceTrack(audioTrack);
-          } catch (err) {
-            console.error('Track replacement failed:', err);
-          }
-        }
-      });
+      hasProbed.current = false;
+      startCamera(newMode).then(replaceWebRTCTracks);
     }
   };
 
@@ -462,17 +587,17 @@ function App() {
                 </button>
               )}
 
-              <button className="ctrl-btn" onClick={toggleResolution}>
+              <button className="ctrl-btn" onClick={toggleMode}>
                 <div className="res-badge">
                   <span>{actualResolution}</span>
-                  <span className="fps-tag">{actualFps}</span>
+                  <span className="fps-tag" onClick={(e) => { e.stopPropagation(); toggleFps(); }}>{actualFps}</span>
                 </div>
               </button>
             </div>
 
             <div className="cam-top-right">
-              <button className="ctrl-btn">
-                <Settings size={20} color="#fff" />
+              <button className="ctrl-btn" onClick={() => setShowSettingsPanel(!showSettingsPanel)}>
+                <Settings size={20} color={showSettingsPanel ? '#818cf8' : '#fff'} />
               </button>
             </div>
           </div>
@@ -505,38 +630,179 @@ function App() {
             </div>
           )}
 
-          {/* Sliders Section */}
-          <div className="cam-sliders">
-            <div className="slider-row">
-              <span className="slider-label">Zoom</span>
-              <input 
-                type="range" 
-                min={capabilities.zoom ? capabilities.zoom.min : 1} 
-                max={capabilities.zoom ? capabilities.zoom.max : 5} 
-                step={capabilities.zoom ? capabilities.zoom.step : 0.1} 
-                value={zoom} 
-                onChange={handleZoomChange}
-                className="slider-track"
-              />
-              <span className="slider-value">{zoom.toFixed(1)}x</span>
-            </div>
+          {/* Settings Panel */}
+          {showSettingsPanel && (
+            <div className="settings-panel-overlay" onClick={() => setShowSettingsPanel(false)}>
+              <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
+                <div className="settings-panel-header">
+                  <h3 className="settings-panel-title">Camera Settings</h3>
+                  <button className="ctrl-btn" onClick={() => setShowSettingsPanel(false)} style={{ width: 32, height: 32 }}>
+                    <X size={16} color="#fff" />
+                  </button>
+                </div>
+                
+                <div className="settings-panel-body">
+                  {/* Mode Info */}
+                  {supportedModes.length > 0 && (
+                    <div className="settings-section">
+                      <div className="settings-section-title">Supported Modes</div>
+                      <div className="mode-chips">
+                        {supportedModes.map((m, i) => (
+                          <button 
+                            key={i}
+                            className={`mode-chip ${i === currentModeIndex ? 'active' : ''}`}
+                            onClick={() => {
+                              setCurrentModeIndex(i);
+                              setResolution(m.label);
+                              setTargetFps(m.fps);
+                              const modeToUse = currentCameraId || facingMode;
+                              startCamera(modeToUse, m.label, m.fps).then(replaceWebRTCTracks);
+                            }}
+                          >
+                            {m.label} <span className="mode-chip-fps">{m.fps}fps</span>
+                          </button>
+                        ))}
+                      </div>
+                      {isProbing && <div className="settings-probing">Detecting camera capabilities...</div>}
+                    </div>
+                  )}
 
-            {capabilities.exposureCompensation && (
-              <div className="slider-row">
-                <span className="slider-label">Bright</span>
-                <input 
-                  type="range" 
-                  min={capabilities.exposureCompensation.min} 
-                  max={capabilities.exposureCompensation.max} 
-                  step={capabilities.exposureCompensation.step} 
-                  value={exposure} 
-                  onChange={handleExposureChange}
-                  className="slider-track"
-                />
-                <span className="slider-value">{exposure > 0 ? '+' : ''}{exposure.toFixed(1)}</span>
+                  {/* Zoom */}
+                  {capabilities.zoom && (
+                    <div className="settings-section">
+                      <div className="settings-section-title">Zoom</div>
+                      <div className="slider-row">
+                        <input type="range" min={capabilities.zoom.min} max={capabilities.zoom.max} step={capabilities.zoom.step || 0.1} value={zoom} onChange={handleZoomChange} className="slider-track" />
+                        <span className="slider-value">{zoom.toFixed(1)}x</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Exposure */}
+                  {capabilities.exposureCompensation && (
+                    <div className="settings-section">
+                      <div className="settings-section-title">Exposure</div>
+                      <div className="slider-row">
+                        <input type="range" min={capabilities.exposureCompensation.min} max={capabilities.exposureCompensation.max} step={capabilities.exposureCompensation.step || 0.1} value={exposure} onChange={handleExposureChange} className="slider-track" />
+                        <span className="slider-value">{exposure > 0 ? '+' : ''}{exposure.toFixed(1)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Focus */}
+                  {capabilities.focusMode && (
+                    <div className="settings-section">
+                      <div className="settings-section-title">Focus</div>
+                      <div className="settings-toggle-row">
+                        {capabilities.focusMode.map(mode => (
+                          <button key={mode} className={`settings-toggle ${focusMode === mode ? 'active' : ''}`} onClick={() => handleFocusModeChange(mode)}>
+                            {mode === 'continuous' ? 'Auto' : mode === 'manual' ? 'Manual' : mode === 'single-shot' ? 'Tap' : mode}
+                          </button>
+                        ))}
+                      </div>
+                      {focusMode === 'manual' && capabilities.focusDistance && (
+                        <div className="slider-row" style={{ marginTop: '0.5rem' }}>
+                          <input type="range" min={capabilities.focusDistance.min} max={capabilities.focusDistance.max} step={capabilities.focusDistance.step || 0.01} value={focusDistance} onChange={handleFocusDistanceChange} className="slider-track" />
+                          <span className="slider-value">{focusDistance.toFixed(1)}m</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* White Balance */}
+                  {capabilities.whiteBalanceMode && (
+                    <div className="settings-section">
+                      <div className="settings-section-title">White Balance</div>
+                      <div className="settings-toggle-row">
+                        {capabilities.whiteBalanceMode.map(mode => (
+                          <button key={mode} className={`settings-toggle ${whiteBalanceMode === mode ? 'active' : ''}`} onClick={() => handleWhiteBalanceModeChange(mode)}>
+                            {mode === 'continuous' ? 'Auto' : mode === 'manual' ? 'Manual' : mode}
+                          </button>
+                        ))}
+                      </div>
+                      {whiteBalanceMode === 'manual' && capabilities.colorTemperature && (
+                        <div className="slider-row" style={{ marginTop: '0.5rem' }}>
+                          <input type="range" min={capabilities.colorTemperature.min} max={capabilities.colorTemperature.max} step={capabilities.colorTemperature.step || 50} value={colorTemperature} onChange={handleColorTemperatureChange} className="slider-track wb-slider" />
+                          <span className="slider-value">{colorTemperature}K</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ISO */}
+                  {capabilities.iso && (
+                    <div className="settings-section">
+                      <div className="settings-section-title">ISO</div>
+                      <div className="slider-row">
+                        <input type="range" min={capabilities.iso.min} max={capabilities.iso.max} step={capabilities.iso.step || 1} value={iso} onChange={handleIsoChange} className="slider-track" />
+                        <span className="slider-value">{Math.round(iso)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Brightness */}
+                  {capabilities.brightness && (
+                    <div className="settings-section">
+                      <div className="settings-section-title">Brightness</div>
+                      <div className="slider-row">
+                        <input type="range" min={capabilities.brightness.min} max={capabilities.brightness.max} step={capabilities.brightness.step || 1} value={brightness} onChange={handleBrightnessChange} className="slider-track" />
+                        <span className="slider-value">{Math.round(brightness)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Contrast */}
+                  {capabilities.contrast && (
+                    <div className="settings-section">
+                      <div className="settings-section-title">Contrast</div>
+                      <div className="slider-row">
+                        <input type="range" min={capabilities.contrast.min} max={capabilities.contrast.max} step={capabilities.contrast.step || 1} value={contrast} onChange={handleContrastChange} className="slider-track" />
+                        <span className="slider-value">{Math.round(contrast)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Saturation */}
+                  {capabilities.saturation && (
+                    <div className="settings-section">
+                      <div className="settings-section-title">Saturation</div>
+                      <div className="slider-row">
+                        <input type="range" min={capabilities.saturation.min} max={capabilities.saturation.max} step={capabilities.saturation.step || 1} value={saturation} onChange={handleSaturationChange} className="slider-track" />
+                        <span className="slider-value">{Math.round(saturation)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Sharpness */}
+                  {capabilities.sharpness && (
+                    <div className="settings-section">
+                      <div className="settings-section-title">Sharpness</div>
+                      <div className="slider-row">
+                        <input type="range" min={capabilities.sharpness.min} max={capabilities.sharpness.max} step={capabilities.sharpness.step || 1} value={sharpness} onChange={handleSharpnessChange} className="slider-track" />
+                        <span className="slider-value">{Math.round(sharpness)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No advanced caps */}
+                  {!capabilities.focusMode && !capabilities.whiteBalanceMode && !capabilities.iso && !capabilities.contrast && !capabilities.saturation && !capabilities.brightness && !capabilities.sharpness && (
+                    <div className="settings-probing" style={{ textAlign: 'center', padding: '1.5rem' }}>No advanced camera controls available on this device.</div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Sliders (quick access: zoom only) */}
+          {capabilities.zoom && (
+            <div className="cam-sliders">
+              <div className="slider-row">
+                <span className="slider-label">Zoom</span>
+                <input type="range" min={capabilities.zoom.min} max={capabilities.zoom.max} step={capabilities.zoom.step || 0.1} value={zoom} onChange={handleZoomChange} className="slider-track" />
+                <span className="slider-value">{zoom.toFixed(1)}x</span>
+              </div>
+            </div>
+          )}
 
           {/* Bottom Controls */}
           <div className="cam-bottom-controls">
