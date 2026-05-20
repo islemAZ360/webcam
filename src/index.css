@@ -822,26 +822,83 @@ button:disabled {
   background: rgba(0, 0, 0, 0.4);
 }
 
-.teleprompter-header .tp-name {
+.tp-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  align-items: flex-start;
+}
+
+.tp-header-left .tp-name {
   color: var(--accent-blue);
   font-weight: 700;
   font-size: 0.85rem;
 }
 
-.teleprompter-header .tp-counter {
+.tp-header-left .tp-counter {
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
+.tp-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tp-header-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: #fff;
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+  backdrop-filter: blur(8px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tp-header-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.20);
+  transform: translateY(-1px);
+}
+
+.tp-header-btn:active {
+  transform: translateY(1px);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tp-header-btn.stop-btn {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+}
+
+.tp-header-btn.stop-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.40);
+}
+
+.tp-header-btn.stop-btn:active {
+  background: rgba(239, 68, 68, 0.10);
+}
+
 .teleprompter-content {
   flex: 1;
-  padding: 2.5rem 1.5rem;
+  padding: 1.5rem;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start; /* Changed to flex-start to prevent top clipping when overflowing, margin: auto 0 on the child centers it perfectly */
   align-items: center;
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
@@ -850,15 +907,16 @@ button:disabled {
 .teleprompter-text {
   flex: 0 0 auto;
   color: #fff;
-  font-size: 1.6rem;
+  /* Fluid typography: adapts beautifully to screen dimensions (portrait or landscape) */
+  font-size: clamp(1.2rem, 6.2vmin, 2.8rem);
   font-weight: 700;
   text-align: center;
-  line-height: 1.8;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
-  margin: 0;
-  padding: 0;
+  line-height: 1.7;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.9);
+  margin: auto 0; /* Vertically centers the text when small, scrolls flawlessly from the top when it overflows */
+  padding: 1rem 0;
   width: 100%;
-  max-width: 600px;
+  max-width: 90%; /* occupies up to 90% of screen width */
   word-wrap: break-word;
   overflow-wrap: break-word;
   white-space: pre-wrap;
@@ -936,7 +994,8 @@ button:disabled {
   }
 
   .teleprompter-text {
-    font-size: clamp(0.9rem, 5vh, 1.4rem);
+    font-size: clamp(1rem, 6vmin, 1.8rem);
+    padding: 0.5rem 0;
   }
 }
 
@@ -979,4 +1038,70 @@ input, textarea {
   user-select: auto !important;
   -webkit-user-select: auto !important;
   pointer-events: auto !important;
+}
+
+/* Intelligent Routing Connection Badges for Phone View */
+.cam-conn-badge-overlay {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 10;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.conn-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 2rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #fff;
+  border: 1px solid transparent;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
+}
+
+.conn-type-badge.usb {
+  background: rgba(245, 158, 11, 0.2);
+  color: #facc15;
+  border-color: rgba(245, 158, 11, 0.35);
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.15);
+}
+
+.conn-type-badge.wifi {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.35);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.15);
+}
+
+.conn-type-badge.internet {
+  background: rgba(139, 92, 246, 0.2);
+  color: #c084fc;
+  border-color: rgba(139, 92, 246, 0.35);
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.15);
+}
+
+.conn-type-badge .badge-icon {
+  flex-shrink: 0;
+}
+
+/* Animations */
+.pulse-fast {
+  animation: pulse-badge-icon 1s infinite alternate;
+}
+
+.pulse-slow {
+  animation: pulse-badge-icon 2s infinite alternate;
+}
+
+@keyframes pulse-badge-icon {
+  0% { transform: scale(1); opacity: 0.75; }
+  100% { transform: scale(1.18); opacity: 1; filter: drop-shadow(0 0 4px currentColor); }
 }

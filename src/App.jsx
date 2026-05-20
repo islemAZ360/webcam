@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Camera, Video, VideoOff, SwitchCamera, Zap, ZapOff, Settings, Activity, Monitor, FileText, X, Focus, Sun, Palette, Contrast, Eye } from 'lucide-react';
+import { Camera, Video, VideoOff, SwitchCamera, Zap, ZapOff, Settings, Activity, Monitor, FileText, X, Focus, Sun, Palette, Contrast, Eye, Globe } from 'lucide-react';
 import { db } from './firebase';
 import { collection, doc, getDoc, setDoc, updateDoc, onSnapshot, addDoc } from 'firebase/firestore';
 import './index.css';
@@ -23,6 +23,7 @@ function App() {
   const [status, setStatus] = useState('disconnected');
   const [errorMsg, setErrorMsg] = useState('');
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [connectionType, setConnectionType] = useState(''); // '', 'usb', 'wifi', 'internet'
   const [facingMode, setFacingMode] = useState('environment');
   const [currentCameraId, setCurrentCameraId] = useState(null);
   const [showCameraMenu, setShowCameraMenu] = useState(false);
@@ -60,7 +61,81 @@ function App() {
   // Teleprompter States
   const [teleprompter, setTeleprompter] = useState(null);
   const [showTeleprompterOverlay, setShowTeleprompterOverlay] = useState(false);
+  const [teleprompterFontSize, setTeleprompterFontSize] = useState('24px');
   
+  const teleprompterTextRef = useRef(null);
+  const teleprompterContainerRef = useRef(null);
+
+  useEffect(() => {
+    const updateTeleprompterFontSize = () => {
+      const textEl = teleprompterTextRef.current;
+      const containerEl = teleprompterContainerRef.current;
+      
+      const screenW = window.innerWidth;
+      const screenH = window.innerHeight;
+      const isLandscape = screenW > screenH;
+      
+      // Calculate optimized base font size depending on layout
+      let baseSize = Math.min(screenW, screenH) * 0.07;
+      if (isLandscape) {
+        baseSize = Math.min(screenW, screenH) * 0.055;
+      }
+      
+      let initialFont = Math.max(14, Math.min(baseSize, 38));
+      
+      if (!textEl || !containerEl) {
+        setTeleprompterFontSize(`${initialFont}px`);
+        return;
+      }
+      
+      // Reset text style to measure accurately
+      textEl.style.fontSize = `${initialFont}px`;
+      
+      // Use Client dimensions minus some padding for safe containment
+      const maxH = containerEl.clientHeight - 40;
+      const maxW = containerEl.clientWidth - 30;
+      
+      let currentFont = initialFont;
+      
+      // Loop to scale down text size if it exceeds safe bounds
+      while (currentFont > 11) {
+        if (textEl.scrollHeight <= maxH && textEl.scrollWidth <= maxW) {
+          break;
+        }
+        currentFont -= 0.5;
+        textEl.style.fontSize = `${currentFont}px`;
+      }
+      
+      setTeleprompterFontSize(`${currentFont}px`);
+    };
+
+    if (showTeleprompterOverlay && teleprompter) {
+      const timer = setTimeout(updateTeleprompterFontSize, 60);
+      
+      window.addEventListener('resize', updateTeleprompterFontSize);
+      window.addEventListener('orientationchange', updateTeleprompterFontSize);
+      
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('resize', updateTeleprompterFontSize);
+        window.removeEventListener('orientationchange', updateTeleprompterFontSize);
+      };
+    }
+  }, [showTeleprompterOverlay, teleprompter, teleprompter?.currentIndex]);
+  
+  const stopTeleprompter = async () => {
+    try {
+      if (roomRef.current) {
+        await updateDoc(roomRef.current, {
+          'teleprompter.isActive': false
+        });
+      }
+      setShowTeleprompterOverlay(false);
+    } catch (err) {
+      console.error('Error stopping teleprompter:', err);
+    }
+  };
+
   const localVideoRef = useRef(null);
   
   const pcRef = useRef(null);
@@ -488,9 +563,14 @@ function App() {
           }
           if (data.teleprompter) {
             setTeleprompter(data.teleprompter);
-            if (!data.teleprompter.isActive) {
+            if (data.teleprompter.isActive) {
+              setShowTeleprompterOverlay(true);
+            } else {
               setShowTeleprompterOverlay(false);
             }
+          } else {
+            setTeleprompter(null);
+            setShowTeleprompterOverlay(false);
           }
         }
       });
@@ -528,6 +608,110 @@ function App() {
     }
   };
 
+  const checkConnectionType = async (pc) => {
+    if (!pc) return;
+    try {
+      const stats = await pc.getStats();
+      let activePair = null;
+      
+      stats.forEach(report => {
+        if (report.type === 'transport' && report.selectedCandidatePairId) {
+          activePair = stats.get(report.selectedCandidatePairId);
+        }
+      });
+      
+      if (!activePair) {
+        stats.forEach(report => {
+          if (report.type === 'candidate-pair' && report.nominated && report.state === 'succeeded') {
+            activePair = report;
+          }
+        });
+      }
+      
+      if (activePair) {
+        const localCand = stats.get(activePair.localCandidateId);
+        const remoteCand = stats.get(activePair.remoteCandidateId);
+        
+        if (localCand && remoteCand) {
+          const localIP = localCand.ip || localCand.address || '';
+          const remoteIP = remoteCand.ip || remoteCand.address || '';
+          const localType = localCand.candidateType || '';
+          const remoteType = remoteCand.candidateType || '';
+          const rtt = activePair.currentRoundTripTime; // standard in seconds
+          
+          console.log('Active ICE Pair Candidates:', { localIP, remoteIP, localType, remoteType, rtt });
+          
+          // Private IP address helper
+          const isPrivateIP = (ip) => {
+            if (!ip) return false;
+            const cleaned = ip.split(':')[0]; // strip ports if any
+            return (
+              cleaned.startsWith('192.168.') ||
+              cleaned.startsWith('10.') ||
+              cleaned.startsWith('172.16.') || cleaned.startsWith('172.17.') ||
+              cleaned.startsWith('172.18.') || cleaned.startsWith('172.19.') ||
+              cleaned.startsWith('172.20.') || cleaned.startsWith('172.21.') ||
+              cleaned.startsWith('172.22.') || cleaned.startsWith('172.23.') ||
+              cleaned.startsWith('172.24.') || cleaned.startsWith('172.25.') ||
+              cleaned.startsWith('172.26.') || cleaned.startsWith('172.27.') ||
+              cleaned.startsWith('172.28.') || cleaned.startsWith('172.29.') ||
+              cleaned.startsWith('172.30.') || cleaned.startsWith('172.31.') ||
+              cleaned === '127.0.0.1' || cleaned === 'localhost' ||
+              cleaned.endsWith('.local') // mDNS masked local address
+            );
+          };
+
+          const isUSBSubnet = (ip) => {
+            if (!ip) return false;
+            return (
+              ip.startsWith('192.168.42.') || // Android USB
+              ip.startsWith('172.20.10.') ||  // iOS USB/Hotspot
+              ip.startsWith('192.168.49.')    // Wi-Fi Direct/Hotspot
+            );
+          };
+
+          // The connection is local if both IPs are local/private/mDNS, or if candidate types are 'host'
+          const isLocal = 
+            (localType === 'host' && remoteType === 'host') || 
+            (isPrivateIP(localIP) && isPrivateIP(remoteIP));
+
+          if (isLocal) {
+            // It is USB tethering if it matches USB subnets or has extremely low latency (< 8ms)
+            const isUSB = 
+              isUSBSubnet(localIP) || 
+              isUSBSubnet(remoteIP) || 
+              (rtt !== undefined && rtt < 0.008);
+            
+            if (isUSB) {
+              setConnectionType('usb');
+            } else {
+              setConnectionType('wifi');
+            }
+          } else {
+            setConnectionType('internet');
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to detect connection type:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (status === 'connected' && pcRef.current) {
+      const timeout = setTimeout(() => checkConnectionType(pcRef.current), 1500);
+      const interval = setInterval(() => {
+        checkConnectionType(pcRef.current);
+      }, 5000);
+      return () => {
+        clearTimeout(timeout);
+        clearInterval(interval);
+      };
+    } else {
+      setConnectionType('');
+    }
+  }, [status]);
+
   const stopConnection = () => {
     if (pcRef.current) {
       pcRef.current.close();
@@ -542,6 +726,7 @@ function App() {
     }
     setIsCameraActive(false);
     setStatus('disconnected');
+    setConnectionType('');
   };
 
   return (
@@ -642,29 +827,51 @@ function App() {
                 style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)' }}
               />
             </div>
+            {connectionType && (
+              <div className="cam-conn-badge-overlay">
+                {connectionType === 'usb' && (
+                  <div className="conn-type-badge usb" title="High-Speed USB Tethering">
+                    <Zap size={12} className="badge-icon pulse-fast" />
+                    <span>USB Tethered</span>
+                  </div>
+                )}
+                {connectionType === 'wifi' && (
+                  <div className="conn-type-badge wifi" title="Local Wi-Fi Network">
+                    <Monitor size={12} className="badge-icon" />
+                    <span>Local Wi-Fi</span>
+                  </div>
+                )}
+                {connectionType === 'internet' && (
+                  <div className="conn-type-badge internet" title="100% Free Public Internet Connection">
+                    <Globe size={12} className="badge-icon pulse-slow" />
+                    <span>Cloud Connect (Free)</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Teleprompter Overlay (full screen) */}
           {showTeleprompterOverlay && teleprompter && teleprompter.isActive && (
             <div className="teleprompter-overlay">
               <div className="teleprompter-header">
-                <span className="tp-name">{teleprompter.name}</span>
-                <span className="tp-counter">{teleprompter.currentIndex + 1} / {teleprompter.parts.length}</span>
+                <div className="tp-header-left">
+                  <span className="tp-name">{teleprompter.name}</span>
+                  <span className="tp-counter">{teleprompter.currentIndex + 1} / {teleprompter.parts.length}</span>
+                </div>
+                <div className="tp-header-actions">
+                  <button className="tp-header-btn hide-btn" onClick={() => setShowTeleprompterOverlay(false)} title="Hide Overlay">
+                    <Eye size={14} />
+                    <span>Hide</span>
+                  </button>
+                  <button className="tp-header-btn stop-btn" onClick={stopTeleprompter} title="Stop Script">
+                    <X size={14} />
+                    <span>Stop</span>
+                  </button>
+                </div>
               </div>
               <div className="teleprompter-content">
-                <p className="teleprompter-text" style={{
-                  fontSize: (() => {
-                    const text = teleprompter.parts[teleprompter.currentIndex] || '';
-                    const len = text.length;
-                    if (len < 80) return '1.6rem';
-                    if (len < 150) return '1.35rem';
-                    if (len < 250) return '1.15rem';
-                    if (len < 400) return '1rem';
-                    if (len < 600) return '0.88rem';
-                    if (len < 900) return '0.78rem';
-                    return '0.7rem';
-                  })()
-                }}>
+                <p className="teleprompter-text" style={{ fontSize: teleprompterFontSize }}>
                   {teleprompter.parts[teleprompter.currentIndex]}
                 </p>
               </div>
@@ -847,8 +1054,20 @@ function App() {
 
           {/* Bottom Controls */}
           <div className="cam-bottom-controls">
-            <div className="cam-status-indicator">
-              <Monitor size={22} color="#fff" />
+            <div className="cam-status-indicator" title={
+              connectionType === 'usb' ? 'USB Tethering Connected' :
+              connectionType === 'wifi' ? 'Local Wi-Fi Connected' :
+              connectionType === 'internet' ? 'Public Internet Connected' : 'Camera Active'
+            }>
+              {connectionType === 'usb' ? (
+                <Zap size={22} color="#facc15" className="pulse-fast" />
+              ) : connectionType === 'wifi' ? (
+                <Monitor size={22} color="#60a5fa" />
+              ) : connectionType === 'internet' ? (
+                <Globe size={22} color="#c084fc" className="pulse-slow" />
+              ) : (
+                <Monitor size={22} color="#fff" />
+              )}
               <div className={`status-dot ${status}`}></div>
             </div>
             
