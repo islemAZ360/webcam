@@ -61,67 +61,7 @@ function App() {
   // Teleprompter States
   const [teleprompter, setTeleprompter] = useState(null);
   const [showTeleprompterOverlay, setShowTeleprompterOverlay] = useState(false);
-  const [teleprompterFontSize, setTeleprompterFontSize] = useState('24px');
-  
-  const teleprompterTextRef = useRef(null);
-  const teleprompterContainerRef = useRef(null);
 
-  useEffect(() => {
-    const updateTeleprompterFontSize = () => {
-      const textEl = teleprompterTextRef.current;
-      const containerEl = teleprompterContainerRef.current;
-      
-      const screenW = window.innerWidth;
-      const screenH = window.innerHeight;
-      const isLandscape = screenW > screenH;
-      
-      // Calculate optimized base font size depending on layout
-      let baseSize = Math.min(screenW, screenH) * 0.07;
-      if (isLandscape) {
-        baseSize = Math.min(screenW, screenH) * 0.055;
-      }
-      
-      let initialFont = Math.max(14, Math.min(baseSize, 38));
-      
-      if (!textEl || !containerEl) {
-        setTeleprompterFontSize(`${initialFont}px`);
-        return;
-      }
-      
-      // Reset text style to measure accurately
-      textEl.style.fontSize = `${initialFont}px`;
-      
-      // Use Client dimensions minus some padding for safe containment
-      const maxH = containerEl.clientHeight - 40;
-      const maxW = containerEl.clientWidth - 30;
-      
-      let currentFont = initialFont;
-      
-      // Loop to scale down text size if it exceeds safe bounds
-      while (currentFont > 11) {
-        if (textEl.scrollHeight <= maxH && textEl.scrollWidth <= maxW) {
-          break;
-        }
-        currentFont -= 0.5;
-        textEl.style.fontSize = `${currentFont}px`;
-      }
-      
-      setTeleprompterFontSize(`${currentFont}px`);
-    };
-
-    if (showTeleprompterOverlay && teleprompter) {
-      const timer = setTimeout(updateTeleprompterFontSize, 60);
-      
-      window.addEventListener('resize', updateTeleprompterFontSize);
-      window.addEventListener('orientationchange', updateTeleprompterFontSize);
-      
-      return () => {
-        clearTimeout(timer);
-        window.removeEventListener('resize', updateTeleprompterFontSize);
-        window.removeEventListener('orientationchange', updateTeleprompterFontSize);
-      };
-    }
-  }, [showTeleprompterOverlay, teleprompter, teleprompter?.currentIndex]);
   
   const stopTeleprompter = async () => {
     try {
@@ -889,7 +829,7 @@ function App() {
                 </div>
               </div>
               <div className="teleprompter-content">
-                <p className="teleprompter-text" style={{ fontSize: teleprompterFontSize }}>
+                <p className="teleprompter-text">
                   {teleprompter.parts[teleprompter.currentIndex]}
                 </p>
               </div>
