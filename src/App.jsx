@@ -142,6 +142,8 @@ function App() {
   const localStreamRef = useRef(null);
   const roomRef = useRef(null);
   const hasProbed = useRef(false);
+  const roomUnsubRef = useRef(null);
+  const candidateUnsubRef = useRef(null);
 
   useEffect(() => {
     if (localVideoRef.current && localStream && isCameraActive) {
@@ -248,10 +250,9 @@ function App() {
       }
       
       localStreamRef.current = stream;
+      setLocalStream(stream);
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
-      } else {
-        setLocalStream(stream);
       }
       setIsCameraActive(true);
 
@@ -553,7 +554,7 @@ function App() {
       await updateDoc(roomDocument, { offer });
 
       // 5. Listen for remote answer and teleprompter
-      onSnapshot(roomDocument, (snapshot) => {
+      roomUnsubRef.current = onSnapshot(roomDocument, (snapshot) => {
         const data = snapshot.data();
         if (data) {
           if (!pc.currentRemoteDescription && data.answer) {
@@ -577,11 +578,17 @@ function App() {
 
       // 6. Listen for remote ICE candidates
       const calleeCandidatesCollection = collection(roomDocument, 'calleeCandidates');
-      onSnapshot(calleeCandidatesCollection, (snapshot) => {
+      candidateUnsubRef.current = onSnapshot(calleeCandidatesCollection, (snapshot) => {
         snapshot.docChanges().forEach((change) => {
           if (change.type === 'added') {
             const data = change.doc.data();
-            pc.addIceCandidate(new RTCIceCandidate(data));
+            try {
+              if (pc.remoteDescription) {
+                pc.addIceCandidate(new RTCIceCandidate(data));
+              }
+            } catch (err) {
+              console.warn('Failed to add ICE candidate:', err);
+            }
           }
         });
       });
@@ -594,8 +601,8 @@ function App() {
         }
       };
 
-      pc.onconnectionstatechange = (event) => {
-        if (pc.connectionState === 'disconnected') {
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
           setStatus('disconnected');
           stopConnection();
         }
@@ -713,6 +720,14 @@ function App() {
   }, [status]);
 
   const stopConnection = () => {
+    if (roomUnsubRef.current) {
+      roomUnsubRef.current();
+      roomUnsubRef.current = null;
+    }
+    if (candidateUnsubRef.current) {
+      candidateUnsubRef.current();
+      candidateUnsubRef.current = null;
+    }
     if (pcRef.current) {
       pcRef.current.close();
       pcRef.current = null;
@@ -724,9 +739,12 @@ function App() {
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = null;
     }
+    setLocalStream(null);
     setIsCameraActive(false);
     setStatus('disconnected');
     setConnectionType('');
+    setTeleprompter(null);
+    setShowTeleprompterOverlay(false);
   };
 
   return (
